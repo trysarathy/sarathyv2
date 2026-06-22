@@ -262,8 +262,32 @@ export default function HomePage() {
         <MoodCheckIn userId={profile.id} />
       </div>
 
+{/* Money check */}
+      <div className="px-5 mb-4">
+        <a href="/check" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🤔</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Money check</p>
+              <p className="text-ink-3 text-xs">Can I afford this? · Impulse · What if</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+      </div>
       {/* Quick links */}
       <div className="px-5 mb-4 flex flex-col gap-3">
+        <a href="/check" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🤔</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Money check</p>
+              <p className="text-ink-3 text-xs">Can I afford this? · Impulse check · What if</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
         <a href="/upload" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">📄</span>
