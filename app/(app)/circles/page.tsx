@@ -228,7 +228,7 @@ export default function CirclesPage() {
         </>
       )}
 
-      <TabBar active="sarathy" />
+      <TabBar active="circles" />
     </div>
   )
 }
