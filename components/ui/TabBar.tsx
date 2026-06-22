@@ -1,13 +1,16 @@
 'use client'
 import Link from 'next/link'
 
+type TabId = 'home' | 'sarathy' | 'circles' | 'story' | 'profile'
+
 interface Props {
-  active: 'home' | 'circles' | 'story' | 'profile'
+  active: TabId
 }
 
 const tabs = [
   { id: 'home', href: '/home', label: 'Today', emoji: '🏠' },
   { id: 'circles', href: '/circles', label: 'Circles', emoji: '👥' },
+  { id: 'sarathy', href: '/sarathy', label: 'Sarathy', emoji: '💬' },
   { id: 'story', href: '/story', label: 'My Story', emoji: '📖' },
   { id: 'profile', href: '/profile', label: 'Profile', emoji: '👤' },
 ]
@@ -22,7 +25,7 @@ export default function TabBar({ active }: Props) {
           className={`tab-item ${active === tab.id ? 'active' : ''}`}
         >
           <span className="text-xl">{tab.emoji}</span>
-          <span>{tab.label}</span>
+          <span className="text-[10px]">{tab.label}</span>
         </Link>
       ))}
     </div>
