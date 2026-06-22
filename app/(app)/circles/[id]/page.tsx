@@ -232,7 +232,7 @@ export default function CirclePage() {
         </>
       )}
 
-      <TabBar active="sarathy" />
+      <TabBar active="circles" />
     </div>
   )
 }
