@@ -11,6 +11,7 @@ import {
 } from '@/lib/calculations'
 import { Profile, BudgetEntry, FixedSpending, SafeToSpendData, PLCategory } from '@/types'
 import TabBar from '@/components/ui/TabBar'
+import MoodCheckIn from '@/components/home/MoodCheckIn'
 import LogExpenseSheet from '@/components/home/LogExpenseSheet'
 import TrustLayerModal from '@/components/home/TrustLayerModal'
 
@@ -291,7 +292,24 @@ export default function HomePage() {
         />
       )}
 
-      <TabBar active="home" />
+      {/* Mood check-in */}
+      <div className="px-5 mb-4">
+        <MoodCheckIn userId={profile.id} />
+      </div>
+
+      {/* Fixed costs link */}
+      <div className="px-5 mb-4">
+        <a href="/fixed" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">💳</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Fixed costs</p>
+              <p className="text-ink-3 text-xs">Rent, subscriptions, bills</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+      </div><TabBar active="home" />
     </div>
   )
 }
