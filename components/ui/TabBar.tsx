@@ -2,12 +2,12 @@
 import Link from 'next/link'
 
 interface Props {
-  active: 'home' | 'sarathy' | 'story' | 'profile'
+  active: 'home' | 'circles' | 'story' | 'profile'
 }
 
 const tabs = [
   { id: 'home', href: '/home', label: 'Today', emoji: '🏠' },
-  { id: 'sarathy', href: '/sarathy', label: 'Sarathy', emoji: '💬' },
+  { id: 'circles', href: '/circles', label: 'Circles', emoji: '👥' },
   { id: 'story', href: '/story', label: 'My Story', emoji: '📖' },
   { id: 'profile', href: '/profile', label: 'Profile', emoji: '👤' },
 ]
