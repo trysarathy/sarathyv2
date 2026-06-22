@@ -99,12 +99,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-dvh bg-cream pb-24">
+
       {/* XP Float */}
       {xpFloat.show && (
-        <div
-          className="xp-float"
-          style={{ left: xpFloat.x, top: xpFloat.y }}
-        >
+        <div className="xp-float" style={{ left: xpFloat.x, top: xpFloat.y }}>
           +10 XP ⚡
         </div>
       )}
@@ -112,9 +110,7 @@ export default function HomePage() {
       {/* Header */}
       <div className="px-5 pt-12 pb-4">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-ink-3 text-sm">
-            Hey {profile.name?.split(' ')[0]} 👋
-          </p>
+          <p className="text-ink-3 text-sm">Hey {profile.name?.split(' ')[0]} 👋</p>
           <div className="flex items-center gap-1.5 text-xs text-ink-3">
             <span>🔥</span>
             <span className="font-medium">{profile.daily_login_streak}d</span>
@@ -178,7 +174,6 @@ export default function HomePage() {
             <p className="text-xs font-semibold text-ink-3 uppercase tracking-wide">This month</p>
           </div>
 
-          {/* Income row */}
           {profile.planning_amount && (
             <div className="flex items-center justify-between px-4 py-3 border-b border-cream">
               <div className="flex items-center gap-2">
@@ -191,7 +186,6 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Expense categories */}
           {categories.length === 0 ? (
             <div className="px-4 py-6 text-center text-ink-3 text-sm">
               No expenses yet this month — log your first one below 👇
@@ -220,7 +214,6 @@ export default function HomePage() {
             ))
           )}
 
-          {/* Balance */}
           {profile.planning_amount && (
             <div className="flex items-center justify-between px-4 py-3 bg-cream border-t border-cream-3">
               <span className="text-sm font-semibold text-ink">Balance</span>
@@ -264,6 +257,36 @@ export default function HomePage() {
         </>
       )}
 
+      {/* Mood check-in */}
+      <div className="px-5 mb-4">
+        <MoodCheckIn userId={profile.id} />
+      </div>
+
+      {/* Quick links */}
+      <div className="px-5 mb-4 flex flex-col gap-3">
+        <a href="/upload" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">📄</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Import transactions</p>
+              <p className="text-ink-3 text-xs">Bank statement · receipt scan</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/fixed" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">💳</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Fixed costs</p>
+              <p className="text-ink-3 text-xs">Rent, subscriptions, bills</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+      </div>
+
       {/* Log Expense Button */}
       <div className="fixed bottom-20 left-0 right-0 px-5 z-40">
         <button
@@ -292,24 +315,7 @@ export default function HomePage() {
         />
       )}
 
-      {/* Mood check-in */}
-      <div className="px-5 mb-4">
-        <MoodCheckIn userId={profile.id} />
-      </div>
-
-      {/* Fixed costs link */}
-      <div className="px-5 mb-4">
-        <a href="/fixed" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">💳</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Fixed costs</p>
-              <p className="text-ink-3 text-xs">Rent, subscriptions, bills</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </a>
-      </div><TabBar active="home" />
+      <TabBar active="home" />
     </div>
   )
 }
