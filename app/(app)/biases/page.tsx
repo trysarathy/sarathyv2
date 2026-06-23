@@ -109,7 +109,7 @@ export default function BiasesPage() {
     })
 
     // 4. Category fragmentation
-    const uniqueCats = [...new Set(entries.map(e => e.category))]
+    const uniqueCats = Array.from(new Set(entries.map(e => e.category))
     detected.push({
       id: 'choice',
       name: 'Too many categories',
