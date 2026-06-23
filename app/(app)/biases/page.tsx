@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { formatCurrency } from '@/lib/calculations'
 import TabBar from '@/components/ui/TabBar'
 
 interface Bias {
@@ -50,11 +49,11 @@ export default function BiasesPage() {
     const detected: Bias[] = []
     const dailySpend: Record<string, number> = {}
     entries.forEach(e => { dailySpend[e.entry_date] = (dailySpend[e.entry_date] || 0) + e.amount })
-    const avgDaily = Object.values(dailySpend).reduce((s: any, v: any) => s + v, 0) / Math.max(Object.keys(dailySpend).length, 1)
+    const vals = Object.values(dailySpend)
+    const avgDaily = vals.length > 0 ? vals.reduce((s: number, v: any) => s + v, 0) / vals.length : 0
 
-    // 1. Emotional spending
-    const anxiousDays = moods.filter(m => m.mood === 'anxious' || m.mood === 'stressed').map(m => m.entry_date)
-    const anxiousHighSpend = anxiousDays.filter(d => (dailySpend[d] || 0) > avgDaily * 1.3)
+    const anxiousDays = moods.filter(m => m.mood === 'anxious' || m.mood === 'stressed').map((m: any) => m.entry_date)
+    const anxiousHighSpend = anxiousDays.filter((d: string) => (dailySpend[d] || 0) > avgDaily * 1.3)
     const emotionalRatio = anxiousDays.length > 0 ? anxiousHighSpend.length / anxiousDays.length : 0
 
     detected.push({
@@ -63,32 +62,30 @@ export default function BiasesPage() {
       emoji: '😰',
       found: emotionalRatio > 0.3 && anxiousDays.length >= 2,
       evidence: emotionalRatio > 0.3 && anxiousDays.length >= 2
-        ? `On ${anxiousHighSpend.length} of your ${anxiousDays.length} anxious days, you spent more than usual. This is one of the most common patterns in behavioral finance.`
-        : `You've logged ${anxiousDays.length} anxious day${anxiousDays.length !== 1 ? 's' : ''}. Your spending stays controlled even when stressed. That's real emotional discipline.`,
-      what: "Emotional spending happens when stress triggers purchases for temporary comfort. Research shows 62% of Gen Z experience this pattern — it's not a character flaw, it's a brain response.",
-      action: "Next time you feel anxious, tap 'I'm anxious' before any purchase. Sarathy will show you why you're safer than you feel — and that alone reduces the urge to spend.",
+        ? `On ${anxiousHighSpend.length} of your ${anxiousDays.length} anxious days, you spent more than usual.`
+        : `You have logged ${anxiousDays.length} anxious days. Your spending stays controlled. That is real emotional discipline.`,
+      what: "Emotional spending happens when stress triggers purchases for temporary comfort. Research shows 62% of Gen Z experience this pattern — it is not a character flaw, it is a brain response.",
+      action: "Next time you feel anxious, tap 'I am anxious' before any purchase. Sarathy will show you why you are safer than you feel.",
       severity: emotionalRatio > 0.5 ? 'high' : 'medium',
     })
 
-    // 2. Present bias
     const highSpendEarlyMonth = entries.filter(e => {
       const d = new Date(e.entry_date)
       return d.getDate() <= 5 && e.amount > avgDaily * 1.5
     })
     detected.push({
       id: 'present',
-      name: 'Payday splurge (present bias)',
+      name: 'Payday splurge',
       emoji: '⏰',
       found: highSpendEarlyMonth.length > 2,
       evidence: highSpendEarlyMonth.length > 2
-        ? `${highSpendEarlyMonth.length} high-spend days detected in the first 5 days of the month — a classic payday splurge pattern.`
-        : 'Your spending is consistent throughout the month — no payday splurge pattern detected.',
-      what: "Present bias is why people overspend right after payday. The brain treats available money as 'free' money, making future obligations feel distant and abstract.",
-      action: "Decide your 'first week budget' at the start of each month — before the money lands. Pre-commitment beats willpower every time.",
+        ? `${highSpendEarlyMonth.length} high-spend days detected in the first 5 days of the month.`
+        : 'Your spending is consistent throughout the month. No payday splurge pattern detected.',
+      what: "Present bias is why people overspend right after payday. The brain treats available money as free money, making future obligations feel distant.",
+      action: "Decide your first-week budget at the start of each month — before the money lands. Pre-commitment beats willpower every time.",
       severity: 'medium',
     })
 
-    // 3. Financial avoidance
     const now = new Date()
     const recentEntries = entries.filter(e => {
       const d = new Date(e.entry_date)
@@ -101,26 +98,26 @@ export default function BiasesPage() {
       emoji: '👀',
       found: avoidance,
       evidence: avoidance
-        ? 'No entries logged in the last 7 days. You may be avoiding checking your finances — which is when anxiety tends to grow fastest.'
-        : `${recentEntries.length} entries logged in the last 7 days — great consistency.`,
-      what: "Financial avoidance happens when checking money feels more painful than not knowing. Research consistently shows avoidance increases anxiety over time. The number in your head is almost always worse than the real one.",
+        ? 'No entries logged in the last 7 days. You may be avoiding checking your finances.'
+        : `${recentEntries.length} entries logged in the last 7 days. Great consistency.`,
+      what: "Financial avoidance happens when checking money feels more painful than not knowing. Research shows avoidance increases anxiety over time.",
       action: "Open Sarathy every morning for just 10 seconds — safe-to-spend number, nothing else. The habit of looking is the cure.",
       severity: avoidance ? 'high' : 'low',
     })
 
-    // 4. Category fragmentation
-    const uniqueCats = Array.from(new Set(entries.map(e => e.category))
+    const catSet = new Set(entries.map(e => e.category))
+    const uniqueCatCount = catSet.size
     detected.push({
       id: 'choice',
       name: 'Too many categories',
       emoji: '🗂️',
-      found: uniqueCats.length > 7,
-      evidence: uniqueCats.length > 7
-        ? `You're using ${uniqueCats.length} categories — this creates cognitive overload and makes it harder to see patterns.`
-        : `${uniqueCats.length} categories — clean and clear.`,
-      what: "Choice overload from too many categories makes financial awareness harder. Behavioral research shows 5-6 categories is the sweet spot — enough to track, simple enough to understand at a glance.",
-      action: "Consolidate to 5: Food, Transport, Social, Home, Family. Everything else becomes Other. Less granularity, more clarity.",
-      severity: uniqueCats.length > 7 ? 'low' : 'low',
+      found: uniqueCatCount > 7,
+      evidence: uniqueCatCount > 7
+        ? `You are using ${uniqueCatCount} categories — this creates cognitive overload.`
+        : `${uniqueCatCount} categories — clean and clear.`,
+      what: "Too many categories makes financial awareness harder. Behavioral research shows 5-6 categories is the sweet spot.",
+      action: "Consolidate to 5: Food, Transport, Social, Home, Family. Everything else becomes Other.",
+      severity: 'low',
     })
 
     setBiases(detected)
@@ -143,7 +140,7 @@ export default function BiasesPage() {
 
       <div className="mx-5 mb-4 bg-saffron-soft rounded-2xl p-4">
         <p className="text-xs text-ink leading-relaxed">
-          🧠 <span className="font-medium">Why this matters:</span> Research shows 62% of Gen Z feel financial anxiety every week. This isn't about math skills — it's about psychology. These patterns are human. Naming them is the first step.
+          🧠 <span className="font-medium">Why this matters:</span> 62% of Gen Z feel financial anxiety every week. This is not about math — it is about psychology. These patterns are human. Naming them is the first step.
         </p>
       </div>
 
