@@ -262,12 +262,97 @@ export default function HomePage() {
         <MoodCheckIn userId={profile.id} />
       </div>
 
-{/* Quick links */}
+      {/* Quick links */}
       <div className="px-5 mb-4 flex flex-col gap-3">
-        <a href="/check" className="card flex items-center justify-between active:opacity-70"><div className="flex items-center gap-3"><span className="text-xl">🤔</span><div><p className="font-medium text-ink text-sm">Money check</p><p className="text-ink-3 text-xs">Can I afford this? · Impulse · What if</p></div></div><span className="text-ink-3">→</span></a>
-        <a href="/remittance" className="card flex items-center justify-between active:opacity-70"><div className="flex items-center gap-3"><span className="text-xl">💸</span><div><p className="font-medium text-ink text-sm">Send money home</p><p className="text-ink-3 text-xs">SGD → INR · Live rate · Best provider</p></div></div><span className="text-ink-3">→</span></a>
-        <a href="/upload" className="card flex items-center justify-between active:opacity-70"><div className="flex items-center gap-3"><span className="text-xl">📄</span><div><p className="font-medium text-ink text-sm">Import transactions</p><p className="text-ink-3 text-xs">Bank statement · receipt scan</p></div></div><span className="text-ink-3">→</span></a>
-        <a href="/fixed" className="card flex items-center justify-between active:opacity-70"><div className="flex items-center gap-3"><span className="text-xl">💳</span><div><p className="font-medium text-ink text-sm">Fixed costs</p><p className="text-ink-3 text-xs">Rent, subscriptions, bills</p></div></div><span className="text-ink-3">→</span></a>
+
+        <a href="/check" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🤔</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Money check</p>
+              <p className="text-ink-3 text-xs">Can I afford this? · Impulse · What if</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/biases" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🧠</span>
+            <div>
+              <p className="font-medium text-ink text-sm">My money psychology</p>
+              <p className="text-ink-3 text-xs">Emotional spending · Present bias · Avoidance</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/future" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🔮</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Future you</p>
+              <p className="text-ink-3 text-xs">3 scenarios · 6 months from now</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/insights" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🧬</span>
+            <div>
+              <p className="font-medium text-ink text-sm">My financial DNA</p>
+              <p className="text-ink-3 text-xs">What your data says about you</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/remittance" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">💸</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Send money home</p>
+              <p className="text-ink-3 text-xs">SGD → INR · Live rate · Best provider</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/marketplace" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🏪</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Built for you</p>
+              <p className="text-ink-3 text-xs">Wise · StashAway · Student accounts</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/upload" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">📄</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Import transactions</p>
+              <p className="text-ink-3 text-xs">Bank statement · receipt scan</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/fixed" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">💳</span>
+            <div>
+              <p className="font-medium text-ink text-sm">Fixed costs</p>
+              <p className="text-ink-3 text-xs">Rent, subscriptions, bills</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
       </div>
 
       {/* Log Expense Button */}
@@ -281,7 +366,6 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Log Expense Sheet */}
       {showLog && (
         <LogExpenseSheet
           profile={profile}
@@ -290,7 +374,6 @@ export default function HomePage() {
         />
       )}
 
-      {/* Trust Layer Modal */}
       {showTrust && safeData && (
         <TrustLayerModal
           safeData={safeData}
