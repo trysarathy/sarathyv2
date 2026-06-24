@@ -262,7 +262,7 @@ export default function HomePage() {
         <MoodCheckIn userId={profile.id} />
       </div>
 
-      {/* Quick links */}
+      {/* Quick links — all features */}
       <div className="px-5 mb-4 flex flex-col gap-3">
 
         <a href="/check" className="card flex items-center justify-between active:opacity-70">
@@ -304,6 +304,17 @@ export default function HomePage() {
             <div>
               <p className="font-medium text-ink text-sm">My financial DNA</p>
               <p className="text-ink-3 text-xs">What your data says about you</p>
+            </div>
+          </div>
+          <span className="text-ink-3">→</span>
+        </a>
+
+        <a href="/mydata" className="card flex items-center justify-between active:opacity-70">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">📊</span>
+            <div>
+              <p className="font-medium text-ink text-sm">My data</p>
+              <p className="text-ink-3 text-xs">Your profile · Behaviour · Benchmarks</p>
             </div>
           </div>
           <span className="text-ink-3">→</span>
