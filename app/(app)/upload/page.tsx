@@ -49,7 +49,10 @@ function parseCsvRow(line: string) {
 
 function parseSignedMoneyCell(value?: string) {
   if (!value?.trim()) return null
-  const normalized = value.replace(/[$,]/g, '').replace(/^\((.*)\)$/, '-$1')
+  const normalized = value
+    .replace(/\u2212/g, '-')
+    .replace(/[^\d.()+-]/g, '')
+    .replace(/^\((.*)\)$/, '-$1')
   const amount = Number.parseFloat(normalized)
   if (!Number.isFinite(amount) || amount === 0) return null
   return amount
