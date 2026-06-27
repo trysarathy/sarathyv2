@@ -11,15 +11,13 @@ import {
   getSarathyOpening,
   getSarathyQuickChips,
 } from '@/lib/personalization'
+import { getCurrentMonthDateRange } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
 
 const FALLBACK_CHIPS = ['Can I afford this today?', 'Show my real picture', 'Plan with me', 'Am I okay?']
 
 function getCurrentMonthRange() {
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('sv-SE')
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('sv-SE')
-  return { monthStart, nextMonthStart }
+  return getCurrentMonthDateRange()
 }
 
 export default function SarathyPage() {

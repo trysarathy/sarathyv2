@@ -23,6 +23,7 @@ import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { CURRENCIES } from '@/components/ui/CurrencySelector'
 import { Profile } from '@/types'
+import { getLocalDateKey } from '@/lib/dates'
 
 interface Props {
   profile: Profile
@@ -78,6 +79,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
       let finalAmount = parseFloat(amount)
       const originalAmount = finalAmount
       const originalCurrency = currency
+      const today = getLocalDateKey()
 
       if (currency !== profileCurrency) {
         try {
@@ -97,7 +99,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
         await supabase.from('mood_logs').upsert({
           user_id: user.id,
           mood,
-          entry_date: new Date().toISOString().split('T')[0],
+          entry_date: today,
         }, { onConflict: 'user_id,entry_date' })
       }
 
@@ -108,7 +110,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
         original_amount: originalAmount,
         original_currency: originalCurrency,
         description: description || category,
-        entry_date: new Date().toISOString().split('T')[0],
+        entry_date: today,
         logged_via: 'manual',
       })
 

@@ -1,5 +1,6 @@
 import { BudgetEntry, FixedSpending, Profile, PLCategory, SafeToSpendData } from '@/types'
 import { formatCurrency } from './calculations'
+import { getLocalDateKey } from './dates'
 
 type MaybeProfile = Partial<Profile> | null | undefined
 type InboxAction = 'log-expense' | 'open-safety'
@@ -243,7 +244,7 @@ export function getSarathyInbox(
 ) {
   const currency = safeData.currency || profile?.primary_currency || 'SGD'
   const firstName = getFirstName(profile)
-  const today = new Date().toLocaleDateString('sv-SE')
+  const today = getLocalDateKey()
   const todayEntries = entries.filter(entry => entry.entry_date === today)
   const topCategory = categories[0]
   const todaySpent = todayEntries.reduce((sum, entry) => sum + entry.amount, 0)
@@ -347,7 +348,13 @@ export function getSarathyInbox(
     })
   }
 
-  if (profile?.responsible_for || profile?.home_country) {
+  const hasHomeSupportContext =
+    Boolean(profile?.home_country?.trim()) ||
+    ['parent', 'family', 'home', 'partner', 'spouse', 'child', 'kid'].some(value =>
+      cleanValue(profile?.responsible_for).toLowerCase().includes(value)
+    )
+
+  if (hasHomeSupportContext) {
     items.push({
       id: 'home-support',
       title: 'Home support stays in the plan',

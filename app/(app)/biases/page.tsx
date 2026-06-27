@@ -16,6 +16,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getFirstName, getMoneyFearPhrase } from '@/lib/personalization'
+import { getDateKeyParts, isDateKeyWithinLastDays } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
 
 interface Bias {
@@ -84,8 +85,8 @@ export default function BiasesPage() {
     })
 
     const highSpendEarlyMonth = entries.filter(e => {
-      const d = new Date(e.entry_date)
-      return d.getDate() <= 5 && e.amount > avgDaily * 1.5
+      const parts = getDateKeyParts(e.entry_date)
+      return Boolean(parts && parts.day <= 5 && e.amount > avgDaily * 1.5)
     })
     detected.push({
       id: 'present',
@@ -101,10 +102,7 @@ export default function BiasesPage() {
     })
 
     const now = new Date()
-    const recentEntries = entries.filter(e => {
-      const d = new Date(e.entry_date)
-      return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 7
-    })
+    const recentEntries = entries.filter(e => isDateKeyWithinLastDays(e.entry_date, 7, now))
     const avoidance = recentEntries.length === 0 && entries.length > 5
     detected.push({
       id: 'avoidance',

@@ -49,6 +49,7 @@ import {
   getPersonalActionHelpers,
   getSarathyInbox,
 } from '@/lib/personalization'
+import { formatDateKey, getLocalDateKey, isDateKeyInCurrentMonth } from '@/lib/dates'
 import type { SarathyInboxItem } from '@/lib/personalization'
 import TabBar from '@/components/ui/TabBar'
 import MoodCheckIn from '@/components/home/MoodCheckIn'
@@ -232,16 +233,13 @@ export default function HomePage() {
     await loadData()
   }
 
+  const todayKey = getLocalDateKey()
   const todaySpent = entries
-    .filter(e => e.entry_date === new Date().toISOString().split('T')[0])
+    .filter(e => e.entry_date === todayKey)
     .reduce((sum, e) => sum + e.amount, 0)
 
   const monthTotal = entries
-    .filter(e => {
-      const d = new Date(e.entry_date)
-      const now = new Date()
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    })
+    .filter(e => isDateKeyInCurrentMonth(e.entry_date))
     .reduce((sum, e) => sum + e.amount, 0)
 
   if (loading) {
@@ -296,9 +294,11 @@ export default function HomePage() {
               aria-label={`Open Sarathy inbox with ${inbox.items.length} notes`}
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-saffron px-1 text-[10px] font-bold text-white shadow-sm">
-                {inbox.items.length}
-              </span>
+              {inbox.items.length > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-saffron px-1 text-[10px] font-bold text-white shadow-sm">
+                  {inbox.items.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -502,7 +502,7 @@ export default function HomePage() {
                   <div key={entry.id} className="flex items-center justify-between gap-3 border-b border-cream py-3 last:border-0">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-ink">{entry.description || entry.category}</p>
-                      <p className="text-xs text-ink-3">{new Date(`${entry.entry_date}T00:00:00Z`).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</p>
+                      <p className="text-xs text-ink-3">{formatDateKey(entry.entry_date)}</p>
                     </div>
                     <span className="text-sm font-semibold text-ink">{formatCurrency(entry.amount, currency)}</span>
                   </div>

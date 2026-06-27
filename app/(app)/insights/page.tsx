@@ -15,6 +15,7 @@ import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, groupEntriesByCategory, getMonthEntries } from '@/lib/calculations'
 import { getInsightsIntro } from '@/lib/personalization'
+import { isDateKeyInMonth } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
 
 type Persona = {
@@ -65,8 +66,9 @@ export default function InsightsPage() {
 
   const getTrend = () => {
     const now = new Date()
-    const thisMonth = entries.filter(e => { const d = new Date(e.entry_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() })
-    const lastMonth = entries.filter(e => { const d = new Date(e.entry_date); const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear() })
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const thisMonth = entries.filter(e => isDateKeyInMonth(e.entry_date, now.getFullYear(), now.getMonth()))
+    const lastMonth = entries.filter(e => isDateKeyInMonth(e.entry_date, lastMonthDate.getFullYear(), lastMonthDate.getMonth()))
     const t = thisMonth.reduce((s, e) => s + e.amount, 0)
     const l = lastMonth.reduce((s, e) => s + e.amount, 0)
     if (!l) return null

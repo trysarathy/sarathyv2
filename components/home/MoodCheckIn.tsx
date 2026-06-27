@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { CheckCircle2, Frown, Meh, Smile } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { getLocalDateKey } from '@/lib/dates'
 
 interface Props {
   userId: string
@@ -25,7 +26,7 @@ export default function MoodCheckIn({ userId, onLogged }: Props) {
     await supabase.from('mood_logs').upsert({
       user_id: userId,
       mood,
-      entry_date: new Date().toISOString().split('T')[0],
+      entry_date: getLocalDateKey(),
     }, { onConflict: 'user_id,entry_date' })
     setSaved(true)
     setTimeout(() => onLogged?.(), 800)

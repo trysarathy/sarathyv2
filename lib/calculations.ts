@@ -1,4 +1,5 @@
 import { BudgetEntry, FixedSpending, Profile, SafeToSpendData, SafetyStatus, PLCategory } from '@/types'
+import { compareDateKeysDesc, isDateKeyInCurrentMonth } from './dates'
 
 function ordinal(day: number) {
   const suffix = day % 10 === 1 && day % 100 !== 11
@@ -31,10 +32,7 @@ export function calculateSafeToSpend(
     .reduce((sum, f) => sum + f.amount, 0)
 
   // Already spent this month
-  const currentMonthEntries = entries.filter(e => {
-    const entryDate = new Date(e.entry_date)
-    return entryDate.getMonth() === month && entryDate.getFullYear() === year
-  })
+  const currentMonthEntries = entries.filter(e => isDateKeyInCurrentMonth(e.entry_date, now))
   const alreadySpent = currentMonthEntries.reduce((sum, e) => sum + e.amount, 0)
 
   // 10% safety buffer
@@ -88,7 +86,7 @@ export function groupEntriesByCategory(entries: BudgetEntry[]): PLCategory[] {
     .map(([category, catEntries]) => ({
       category,
       total: catEntries.reduce((sum, e) => sum + e.amount, 0),
-      entries: catEntries.sort((a, b) => new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime()),
+      entries: catEntries.sort((a, b) => compareDateKeysDesc(a.entry_date, b.entry_date)),
       percentage: total > 0 ? Math.round((catEntries.reduce((sum, e) => sum + e.amount, 0) / total) * 100) : 0,
     }))
     .sort((a, b) => b.total - a.total)
@@ -143,8 +141,5 @@ export function getLevelName(xp: number): string {
 
 export function getMonthEntries(entries: BudgetEntry[]): BudgetEntry[] {
   const now = new Date()
-  return entries.filter(e => {
-    const d = new Date(e.entry_date)
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  })
+  return entries.filter(e => isDateKeyInCurrentMonth(e.entry_date, now))
 }

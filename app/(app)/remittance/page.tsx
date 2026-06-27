@@ -135,7 +135,7 @@ export default function RemittancePage() {
       setRate(liveRate)
       getSarathyTip(liveRate, contextProfile)
     } catch {
-      if (destinationCurrency === 'INR') {
+      if (sourceCurrency === 'SGD' && destinationCurrency === 'INR') {
         const fallbackRate = 61.5
         setRate(fallbackRate)
         setRateError('Using a fallback INR rate because the live rate is unavailable.')

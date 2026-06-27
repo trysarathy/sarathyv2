@@ -39,8 +39,23 @@ const FIXED_COST_ICONS: Array<{ value: string; label: string; icon: LucideIcon }
   { value: 'food', label: 'Food', icon: Utensils },
 ]
 
+const LEGACY_FIXED_COST_ICONS: Record<string, string> = {
+  '🏠': 'home',
+  '📱': 'phone',
+  '💡': 'utilities',
+  '🚗': 'car',
+  '🎓': 'education',
+  '💊': 'health',
+  '🌐': 'internet',
+  '📺': 'tv',
+  '🎵': 'music',
+  '🏋️': 'fitness',
+  '🍔': 'food',
+}
+
 function FixedCostGlyph({ value }: { value?: string | null }) {
-  const match = FIXED_COST_ICONS.find(item => item.value === value)
+  const normalizedValue = value ? LEGACY_FIXED_COST_ICONS[value] || value : null
+  const match = FIXED_COST_ICONS.find(item => item.value === normalizedValue)
   const Icon = match?.icon || CreditCard
   return <Icon className="h-5 w-5" />
 }

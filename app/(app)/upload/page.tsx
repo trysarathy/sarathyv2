@@ -4,11 +4,13 @@ import { useRouter } from 'next/navigation'
 import { Camera, CheckCircle2, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/calculations'
+import { detectNumericDateOrder, formatDateKey, getLocalDateKey, normalizeDateKey } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
 
 const CATEGORIES = ['Food','Transport','Social','Home','Family','Shopping','Health','Education','Entertainment','Other']
 
 interface Tx { date:string; description:string; amount:number; category:string; selected:boolean }
+type ParsedTx = Pick<Tx, 'date' | 'description' | 'amount'>
 
 export default function UploadPage() {
   const router = useRouter()
@@ -38,31 +40,35 @@ export default function UploadPage() {
         }
         const { data: p } = await supabase.from('profiles').select('primary_currency').eq('id', user.id).single()
         if (p) setCurrency(p.primary_currency || 'SGD')
+        setAuthChecking(false)
       } catch (err) {
         console.error('Auth guard error:', err)
         router.replace('/login')
-      } finally {
-        setAuthChecking(false)
       }
     }
     guard()
   }, [])
 
-  const parseCSV = (text: string) => {
+  const parseCSV = (text: string): ParsedTx[] => {
     const lines = text.trim().split('\n')
-    const results = []
+    const rawRows: Array<{ rawDate: string; description: string; amount: number }> = []
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g,'').trim())
       if (cols.length < 3) continue
-      const date = cols[0]
+      const rawDate = cols[0]
       const description = cols[1]
       let amount = 0
       for (let j = 2; j < cols.length; j++) {
         const n = parseFloat(cols[j].replace(/[$,]/g,''))
         if (!isNaN(n) && n > 0) { amount = n; break }
       }
-      if (amount > 0 && description) results.push({ date, description, amount })
+      if (amount > 0 && description) rawRows.push({ rawDate, description, amount })
     }
+    const dateOrder = detectNumericDateOrder(rawRows.map(row => row.rawDate))
+    const results = rawRows.flatMap(row => {
+      const date = normalizeDateKey(row.rawDate, dateOrder)
+      return date ? [{ date, description: row.description, amount: row.amount }] : []
+    })
     return results.slice(0, 50)
   }
 
@@ -98,7 +104,7 @@ export default function UploadPage() {
       if (!user) return
       await supabase.from('budget_entries').insert(sel.map(t => ({
         user_id: user.id, category: t.category, amount: t.amount,
-        description: t.description, entry_date: t.date || new Date().toISOString().split('T')[0], logged_via: 'statement'
+        description: t.description, entry_date: t.date || getLocalDateKey(), logged_via: 'statement'
       })))
       setSaved(true)
     } catch (err: any) { setError(err.message) }
@@ -131,7 +137,7 @@ export default function UploadPage() {
       if (!user) return
       await supabase.from('budget_entries').insert({
         user_id: user.id, category: receiptResult.category, amount: receiptResult.amount,
-        description: receiptResult.merchant, entry_date: new Date().toISOString().split('T')[0], logged_via: 'receipt'
+        description: receiptResult.merchant, entry_date: getLocalDateKey(), logged_via: 'receipt'
       })
       setReceiptDone(true)
     } catch (err: any) { setError(err.message) }
@@ -197,7 +203,7 @@ export default function UploadPage() {
                         <div className="flex-1">
                           <div className="flex justify-between gap-2"><p className="text-sm font-medium text-ink truncate">{t.description}</p><p className="text-sm font-semibold flex-shrink-0">{formatCurrency(t.amount,currency)}</p></div>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs text-ink-3">{t.date}</p>
+                            <p className="text-xs text-ink-3">{formatDateKey(t.date)}</p>
                             <select value={t.category} onChange={e=>setTxs(p=>p.map((x,j)=>j===i?{...x,category:e.target.value}:x))}
                               className="text-xs bg-cream rounded-lg px-2 py-1 outline-none">
                               {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}

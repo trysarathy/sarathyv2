@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, groupEntriesByCategory } from '@/lib/calculations'
 import { getFutureIntro } from '@/lib/personalization'
+import { isDateKeyInCurrentMonth } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
 
 type ScenarioOption = {
@@ -47,15 +48,10 @@ export default function FuturePage() {
 
   const getProjection = () => {
     if (!profile?.planning_amount) return null
-    const now = new Date()
     const monthsToProject = 6
-    const cats = groupEntriesByCategory(entries)
-    const monthlySpend = entries
-      .filter(e => {
-        const d = new Date(e.entry_date)
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-      })
-      .reduce((s, e) => s + e.amount, 0)
+    const monthEntries = entries.filter(e => isDateKeyInCurrentMonth(e.entry_date))
+    const cats = groupEntriesByCategory(monthEntries)
+    const monthlySpend = monthEntries.reduce((s, e) => s + e.amount, 0)
 
     const topCat = cats[0]
     const topCatMonthly = topCat?.total || 0
