@@ -5,9 +5,11 @@ import { Camera, CheckCircle2, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/calculations'
 import { detectNumericDateOrder, formatDateKey, getLocalDateKey, normalizeDateKey } from '@/lib/dates'
+import type { DateOrder } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
 
 const CATEGORIES = ['Food','Transport','Social','Home','Family','Shopping','Health','Education','Entertainment','Other']
+const MONTH_FIRST_CURRENCIES = new Set(['USD'])
 
 interface Tx { date:string; description:string; amount:number; category:string; selected:boolean }
 type ParsedTx = Pick<Tx, 'date' | 'description' | 'amount'>
@@ -72,6 +74,10 @@ function findHeaderIndices(headers: string[], patterns: RegExp[]) {
     .filter(index => index >= 0)
 }
 
+function getStatementDateFallbackOrder(currency: string): DateOrder {
+  return MONTH_FIRST_CURRENCIES.has(currency) ? 'month-first' : 'day-first'
+}
+
 function getExpenseAmount(
   cols: string[],
   debitIndices: number[],
@@ -96,7 +102,13 @@ function getExpenseAmount(
   for (const index of amountIndices) {
     const signedAmount = parseSignedMoneyCell(cols[index])
     if (signedAmount === null) continue
-    if (typeSaysDebit || signedAmount < 0) return Math.abs(signedAmount)
+    if (
+      typeSaysDebit ||
+      signedAmount < 0 ||
+      (typeIndex === null && debitIndices.length === 0 && creditIndices.length === 0)
+    ) {
+      return Math.abs(signedAmount)
+    }
   }
 
   return null
@@ -162,7 +174,10 @@ export default function UploadPage() {
         if (rawRows.length >= 50) break
       }
     }
-    const dateOrder = detectNumericDateOrder(rawRows.map(row => row.rawDate))
+    const detectedDateOrder = detectNumericDateOrder(rawRows.map(row => row.rawDate))
+    const dateOrder = detectedDateOrder === 'unknown'
+      ? getStatementDateFallbackOrder(currency)
+      : detectedDateOrder
     const results = rawRows.flatMap(row => {
       const date = normalizeDateKey(row.rawDate, dateOrder)
       return date ? [{ date, description: row.description, amount: row.amount }] : []
