@@ -15,9 +15,9 @@ const config: Config = {
           soft: '#FFF3E8',
         },
         cream: {
-          DEFAULT: '#FFFAF7',
-          2: '#FEF3E8',
-          3: '#FDE8D0',
+          DEFAULT: '#F8F4EF',
+          2: '#F3EDE6',
+          3: '#EDE7DF',
         },
         plum: {
           DEFAULT: '#1E0A2E',
@@ -26,8 +26,11 @@ const config: Config = {
         },
         ink: {
           DEFAULT: '#1C0A00',
-          3: '#8C5A32',
+          3: '#7A6254',
         },
+        surface: '#FFFFFF',
+        line: '#EDE7DF',
+        mint: '#E9F8F0',
         safe: '#10B981',
         danger: '#F43F5E',
         warning: '#F59E0B',

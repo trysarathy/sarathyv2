@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircle2, LockKeyhole, Sprout } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, groupEntriesByCategory, getMonthEntries } from '@/lib/calculations'
+import { getFirstName, getProfileSummary } from '@/lib/personalization'
 import TabBar from '@/components/ui/TabBar'
 
 export default function MyDataPage() {
@@ -80,9 +82,9 @@ export default function MyDataPage() {
         avg: 280,
         unit: currency,
         insight: myFood < 280
-          ? 'You spend less on food than the average Singapore student 🎉'
+          ? 'You spend less on food than the average Singapore student.'
           : myFood < 400
-          ? 'Your food spend is close to average — no alarm bells'
+          ? 'Your food spend is close to average. No alarm bells.'
           : 'Food is your biggest opportunity to save vs peers',
       },
       {
@@ -91,8 +93,8 @@ export default function MyDataPage() {
         avg: 95,
         unit: currency,
         insight: myTransport < 95
-          ? 'Below average transport spend — well managed'
-          : 'Slightly above average — consider MRT over Grab where possible',
+          ? 'Below average transport spend. Well managed.'
+          : 'Slightly above average. Consider MRT over Grab where possible.',
       },
       {
         label: 'Total monthly spend',
@@ -103,7 +105,7 @@ export default function MyDataPage() {
           ? 'You spend less than the average international student in Singapore'
           : myMonthSpend < 1200
           ? 'In line with typical student spending in Singapore'
-          : 'Above average monthly spend — worth reviewing your fixed costs',
+          : 'Above average monthly spend. Worth reviewing your fixed costs.',
       },
       {
         label: 'Streak (days)',
@@ -111,8 +113,8 @@ export default function MyDataPage() {
         avg: 4,
         unit: 'days',
         insight: (profile?.daily_login_streak || 0) >= 4
-          ? 'Your check-in habit is stronger than average — that consistency pays off'
-          : 'Building the daily check-in habit takes 2-3 weeks — keep going',
+          ? 'Your check-in habit is stronger than average. That consistency pays off.'
+          : 'Building the daily check-in habit takes 2-3 weeks. Keep going.',
       },
     ]
   }
@@ -126,23 +128,28 @@ export default function MyDataPage() {
   const behaviour = getBehaviouralProfile()
   const benchmarks = getBenchmarks()
   const currency = profile?.primary_currency || 'SGD'
+  const firstName = getFirstName(profile)
+  const summary = getProfileSummary(profile)
 
   return (
     <div className="min-h-dvh bg-cream pb-24">
       <div className="px-5 pt-12 pb-4">
         <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">
-          My data
+          {firstName}'s data
         </h1>
         <p className="text-ink-3 text-sm">
-          Everything Sarathy knows about you — owned by you, always
+          Everything Sarathy uses to personalize the app. {summary.note}
         </p>
       </div>
 
       {/* Privacy note */}
       <div className="mx-5 mb-4 bg-saffron-soft rounded-2xl p-4">
-        <p className="text-xs text-ink leading-relaxed">
-          🔒 <span className="font-medium">Your data, your rules.</span> Sarathy never sells your personal data. Benchmarks use anonymised, aggregated data only — no individual is ever identifiable. You can request deletion anytime from Profile → Settings.
-        </p>
+        <div className="flex items-start gap-2">
+          <LockKeyhole className="mt-0.5 h-4 w-4 flex-shrink-0 text-saffron" />
+          <p className="text-xs text-ink leading-relaxed">
+            <span className="font-medium">Your data, your rules.</span> Sarathy never sells personal data. Benchmarks use anonymised, aggregated data only, and no individual is ever identifiable.
+          </p>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -177,18 +184,18 @@ export default function MyDataPage() {
               </p>
               <div className="flex flex-col gap-3">
                 {[
-                  { label: 'Name', value: profile?.name || '—' },
-                  { label: 'User type', value: profile?.user_types?.join(', ') || '—' },
-                  { label: 'Home country', value: profile?.home_country || '—' },
+                  { label: 'Name', value: profile?.name || '-' },
+                  { label: 'User type', value: profile?.user_types?.join(', ') || '-' },
+                  { label: 'Home country', value: profile?.home_country || '-' },
                   { label: 'Current country', value: profile?.current_country || 'Singapore' },
-                  { label: 'Monthly budget', value: profile?.planning_amount ? formatCurrency(profile.planning_amount, currency) : '—' },
-                  { label: 'Money fear', value: profile?.money_fear || '—' },
-                  { label: 'Responsible for', value: profile?.responsible_for || '—' },
-                  { label: 'Companion vibe', value: profile?.companion_vibe?.replace(/_/g, ' ') || '—' },
+                  { label: 'Monthly budget', value: profile?.planning_amount ? formatCurrency(profile.planning_amount, currency) : '-' },
+                  { label: 'Money fear', value: profile?.money_fear || '-' },
+                  { label: 'Responsible for', value: profile?.responsible_for || '-' },
+                  { label: 'Companion vibe', value: profile?.companion_vibe?.replace(/_/g, ' ') || '-' },
                   { label: 'Transactions logged', value: `${entries.length}` },
                   { label: 'Mood logs', value: `${moodLogs.length}` },
                   { label: 'Goals set', value: `${goals.length}` },
-                  { label: 'Member since', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
+                  { label: 'Member since', value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' }) : '-' },
                 ].map(row => (
                   <div key={row.label} className="flex items-center justify-between py-1 border-b border-cream last:border-0">
                     <span className="text-xs text-ink-3">{row.label}</span>
@@ -211,7 +218,7 @@ export default function MyDataPage() {
                   'Any data sold to third parties',
                 ].map(item => (
                   <div key={item} className="flex items-center gap-2">
-                    <span className="text-safe text-xs">✓</span>
+                    <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-safe" />
                     <span className="text-xs text-ink-3">{item}</span>
                   </div>
                 ))}
@@ -258,7 +265,7 @@ export default function MyDataPage() {
                 Why this matters
               </p>
               <p className="text-sm text-ink leading-relaxed">
-                This is the data layer that no bank will ever have. Banks see transactions. Sarathy sees the emotion behind the transaction — when you were anxious, what you resisted buying, how your mood connects to your spending. That self-knowledge is yours.
+                This is the data layer that no bank will ever have. Banks see transactions. Sarathy sees the context around them: when you were anxious, what you resisted buying, and how your mood connects to spending. That self-knowledge is yours.
               </p>
             </div>
           </>
@@ -275,7 +282,7 @@ export default function MyDataPage() {
 
             {entries.length < 3 ? (
               <div className="card text-center py-8">
-                <p className="text-3xl mb-3">🌱</p>
+                <Sprout className="mx-auto mb-3 h-10 w-10 text-saffron" />
                 <p className="font-medium text-ink mb-1">Log more to unlock benchmarks</p>
                 <p className="text-ink-3 text-sm">Need at least 3 transactions to generate comparisons.</p>
               </div>

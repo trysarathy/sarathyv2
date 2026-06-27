@@ -1,22 +1,62 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  Car,
+  CreditCard,
+  Dumbbell,
+  GraduationCap,
+  Home,
+  Lightbulb,
+  Music,
+  Pill,
+  Plus,
+  Smartphone,
+  Tv,
+  Utensils,
+  Wifi,
+  X,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { FixedSpending } from '@/types'
+import { FixedSpending, Profile } from '@/types'
 import { formatCurrency } from '@/lib/calculations'
+import { getFirstName } from '@/lib/personalization'
 import TabBar from '@/components/ui/TabBar'
+
+const FIXED_COST_ICONS: Array<{ value: string; label: string; icon: LucideIcon }> = [
+  { value: 'card', label: 'Card', icon: CreditCard },
+  { value: 'home', label: 'Home', icon: Home },
+  { value: 'phone', label: 'Phone', icon: Smartphone },
+  { value: 'utilities', label: 'Utilities', icon: Lightbulb },
+  { value: 'car', label: 'Car', icon: Car },
+  { value: 'education', label: 'School', icon: GraduationCap },
+  { value: 'health', label: 'Health', icon: Pill },
+  { value: 'internet', label: 'Internet', icon: Wifi },
+  { value: 'tv', label: 'TV', icon: Tv },
+  { value: 'music', label: 'Music', icon: Music },
+  { value: 'fitness', label: 'Fitness', icon: Dumbbell },
+  { value: 'food', label: 'Food', icon: Utensils },
+]
+
+function FixedCostGlyph({ value }: { value?: string | null }) {
+  const match = FIXED_COST_ICONS.find(item => item.value === value)
+  const Icon = match?.icon || CreditCard
+  return <Icon className="h-5 w-5" />
+}
 
 export default function FixedCostsPage() {
   const router = useRouter()
   const supabase = createClient()
   const [items, setItems] = useState<FixedSpending[]>([])
+  const [profile, setProfile] = useState<Pick<Profile, 'name' | 'primary_currency'> | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [currency, setCurrency] = useState('SGD')
 
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
-  const [emoji, setEmoji] = useState('💳')
+  const [emoji, setEmoji] = useState('card')
   const [dueDay, setDueDay] = useState('')
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -26,10 +66,13 @@ export default function FixedCostsPage() {
     if (!user) { router.replace('/login'); return }
     const [fixedRes, profileRes] = await Promise.all([
       supabase.from('fixed_spending').select('*').eq('user_id', user.id).order('created_at'),
-      supabase.from('profiles').select('primary_currency').eq('id', user.id).single(),
+      supabase.from('profiles').select('name, primary_currency').eq('id', user.id).single(),
     ])
     setItems((fixedRes.data || []) as FixedSpending[])
-    if (profileRes.data) setCurrency(profileRes.data.primary_currency || 'SGD')
+    if (profileRes.data) {
+      setProfile(profileRes.data as Pick<Profile, 'name' | 'primary_currency'>)
+      setCurrency(profileRes.data.primary_currency || 'SGD')
+    }
     setLoading(false)
   }
 
@@ -53,7 +96,7 @@ export default function FixedCostsPage() {
       })
     }
 
-    setName(''); setAmount(''); setEmoji('💳')
+    setName(''); setAmount(''); setEmoji('card')
     setDueDay(''); setEditingId(null)
     setShowAdd(false); setSaving(false)
     load()
@@ -82,11 +125,8 @@ export default function FixedCostsPage() {
   const total = items
     .filter(i => i.is_active)
     .reduce((sum, i) => sum + i.amount, 0)
-
-  const EMOJIS = [
-    '💳', '🏠', '📱', '💡', '🚗',
-    '🎓', '💊', '🌐', '📺', '🎵', '🏋️', '🍔'
-  ]
+  const firstName = getFirstName(profile)
+  const fixedTitle = firstName === 'there' ? 'Your fixed costs' : `${firstName}'s fixed costs`
 
   if (loading) return (
     <div className="min-h-dvh bg-cream flex items-center justify-center">
@@ -99,18 +139,19 @@ export default function FixedCostsPage() {
       <div className="px-5 pt-12 pb-4">
         <div className="flex items-center justify-between mb-1">
           <h1 className="font-fraunces text-2xl font-semibold text-ink">
-            Fixed costs
+            {fixedTitle}
           </h1>
           <button
             onClick={() => {
               setShowAdd(true)
               setEditingId(null)
               setName(''); setAmount('')
-              setEmoji('💳'); setDueDay('')
+              setEmoji('card'); setDueDay('')
             }}
-            className="w-9 h-9 bg-saffron rounded-full text-white text-xl flex items-center justify-center"
+            className="w-9 h-9 bg-saffron rounded-full text-white flex items-center justify-center"
+            aria-label="Add fixed cost"
           >
-            +
+            <Plus className="h-5 w-5" />
           </button>
         </div>
         <p className="text-ink-3 text-sm">
@@ -124,10 +165,10 @@ export default function FixedCostsPage() {
       <div className="px-5">
         {items.length === 0 ? (
           <div className="card text-center py-8">
-            <p className="text-3xl mb-3">💳</p>
+            <CreditCard className="mx-auto mb-3 h-10 w-10 text-saffron" />
             <p className="font-medium text-ink mb-1">No fixed costs yet</p>
             <p className="text-ink-3 text-sm">
-              Add rent, subscriptions, phone bills —
+              Add rent, subscriptions, phone bills,
               anything that repeats monthly.
             </p>
           </div>
@@ -140,7 +181,9 @@ export default function FixedCostsPage() {
                   !item.is_active ? 'opacity-50' : ''
                 }`}
               >
-                <span className="text-2xl">{item.emoji}</span>
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-saffron-soft text-saffron">
+                  <FixedCostGlyph value={item.emoji} />
+                </div>
                 <div className="flex-1">
                   <p className="font-medium text-ink text-sm">{item.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -149,7 +192,7 @@ export default function FixedCostsPage() {
                     </span>
                     {item.due_day && (
                       <span className="text-xs text-ink-3">
-                        · due {item.due_day}th
+                        due {item.due_day}th
                       </span>
                     )}
                   </div>
@@ -188,26 +231,31 @@ export default function FixedCostsPage() {
               </h3>
               <button
                 onClick={() => setShowAdd(false)}
-                className="text-ink-3 text-2xl"
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-ink-3"
+                aria-label="Close fixed cost form"
               >
-                ×
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-              {EMOJIS.map(e => (
+              {FIXED_COST_ICONS.map(option => {
+                const Icon = option.icon
+                return (
                 <button
-                  key={e}
-                  onClick={() => setEmoji(e)}
-                  className={`text-2xl w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${
-                    emoji === e
+                  key={option.value}
+                  onClick={() => setEmoji(option.value)}
+                  className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${
+                    emoji === option.value
                       ? 'bg-saffron-soft border-2 border-saffron'
                       : 'bg-cream'
                   }`}
+                  aria-label={option.label}
                 >
-                  {e}
+                  <Icon className="h-5 w-5 text-saffron" />
                 </button>
-              ))}
+                )
+              })}
             </div>
 
             <input

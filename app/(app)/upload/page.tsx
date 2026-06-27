@@ -1,12 +1,12 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { Camera, CheckCircle2, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/calculations'
 import TabBar from '@/components/ui/TabBar'
 
 const CATEGORIES = ['Food','Transport','Social','Home','Family','Shopping','Health','Education','Entertainment','Other']
-const EMOJIS: Record<string,string> = {Food:'🍔',Transport:'🚕',Social:'👥',Home:'��',Family:'❤️',Shopping:'🛍️',Health:'💊',Education:'🎓',Entertainment:'🎬',Other:'📌'}
 
 interface Tx { date:string; description:string; amount:number; category:string; selected:boolean }
 
@@ -26,6 +26,21 @@ export default function UploadPage() {
   const [receiptResult, setReceiptResult] = useState<{amount:number|null;merchant:string;category:string}|null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string|null>(null)
   const [receiptDone, setReceiptDone] = useState(false)
+  const [authChecking, setAuthChecking] = useState(true)
+
+  useEffect(() => {
+    const guard = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.replace('/login')
+        return
+      }
+      const { data: p } = await supabase.from('profiles').select('primary_currency').eq('id', user.id).single()
+      if (p) setCurrency(p.primary_currency || 'SGD')
+      setAuthChecking(false)
+    }
+    guard()
+  }, [])
 
   const parseCSV = (text: string) => {
     const lines = text.trim().split('\n')
@@ -119,6 +134,12 @@ export default function UploadPage() {
 
   const sel = txs.filter(t => t.selected)
 
+  if (authChecking) return (
+    <div className="min-h-dvh bg-cream flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-saffron border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
   return (
     <div className="min-h-dvh bg-cream pb-24">
       <div className="px-5 pt-12 pb-4">
@@ -130,7 +151,10 @@ export default function UploadPage() {
           {(['statement','receipt'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${tab===t?'bg-saffron text-white':'text-ink-3'}`}>
-              {t==='statement'?'📄 Bank statement':'📷 Receipt scan'}
+              <span className="inline-flex items-center justify-center gap-2">
+                {t === 'statement' ? <FileText className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                {t === 'statement' ? 'Bank statement' : 'Receipt scan'}
+              </span>
             </button>
           ))}
         </div>
@@ -142,17 +166,17 @@ export default function UploadPage() {
               <>
                 <div onClick={() => fileRef.current?.click()}
                   className="card border-2 border-dashed border-saffron/30 text-center py-10 cursor-pointer active:bg-saffron-soft">
-                  <p className="text-4xl mb-3">📄</p>
+                  <FileText className="mx-auto mb-3 h-10 w-10 text-saffron" />
                   <p className="font-medium text-ink mb-1">Upload CSV statement</p>
                   <p className="text-ink-3 text-sm mb-3">Exported from your bank app</p>
-                  <span className="text-saffron text-sm font-medium">Choose file →</span>
+                  <span className="text-saffron text-sm font-medium">Choose file</span>
                 </div>
                 <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
                 {error && <div className="mt-3 bg-red-50 text-danger text-sm px-4 py-3 rounded-xl">{error}</div>}
               </>
             )}
             {parsing && <div className="card text-center py-10"><div className="w-8 h-8 border-2 border-saffron border-t-transparent rounded-full animate-spin mx-auto mb-3"/><p className="text-ink-3 text-sm">Categorising transactions...</p></div>}
-            {saved && <div className="card text-center py-10"><p className="text-4xl mb-3">✅</p><p className="font-fraunces text-xl font-semibold text-ink mb-1">{sel.length} transactions saved</p><button onClick={() => router.push('/home')} className="btn-primary mt-4">Back to home</button></div>}
+            {saved && <div className="card text-center py-10"><CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-safe" /><p className="font-fraunces text-xl font-semibold text-ink mb-1">{sel.length} transactions saved</p><button onClick={() => router.push('/home')} className="btn-primary mt-4">Back to home</button></div>}
             {txs.length > 0 && !saved && (
               <>
                 <div className="flex justify-between mb-3"><p className="text-sm font-medium text-ink">{sel.length} of {txs.length} selected</p><p className="text-sm text-saffron font-semibold">{formatCurrency(sel.reduce((s,t)=>s+t.amount,0),currency)}</p></div>
@@ -162,7 +186,7 @@ export default function UploadPage() {
                       <div className="flex items-start gap-3">
                         <button onClick={() => setTxs(p=>p.map((x,j)=>j===i?{...x,selected:!x.selected}:x))}
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${t.selected?'bg-saffron border-saffron':'border-gray-300'}`}>
-                          {t.selected && <span className="text-white text-xs">✓</span>}
+                          {t.selected && <CheckCircle2 className="h-3 w-3 text-white" />}
                         </button>
                         <div className="flex-1">
                           <div className="flex justify-between gap-2"><p className="text-sm font-medium text-ink truncate">{t.description}</p><p className="text-sm font-semibold flex-shrink-0">{formatCurrency(t.amount,currency)}</p></div>
@@ -170,7 +194,7 @@ export default function UploadPage() {
                             <p className="text-xs text-ink-3">{t.date}</p>
                             <select value={t.category} onChange={e=>setTxs(p=>p.map((x,j)=>j===i?{...x,category:e.target.value}:x))}
                               className="text-xs bg-cream rounded-lg px-2 py-1 outline-none">
-                              {CATEGORIES.map(c=><option key={c} value={c}>{EMOJIS[c]} {c}</option>)}
+                              {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
                             </select>
                           </div>
                         </div>
@@ -192,10 +216,10 @@ export default function UploadPage() {
               <>
                 <div onClick={()=>receiptRef.current?.click()}
                   className="card border-2 border-dashed border-saffron/30 text-center py-10 cursor-pointer active:bg-saffron-soft">
-                  <p className="text-4xl mb-3">📷</p>
+                  <Camera className="mx-auto mb-3 h-10 w-10 text-saffron" />
                   <p className="font-medium text-ink mb-1">Scan a receipt</p>
                   <p className="text-ink-3 text-sm mb-3">Take a photo or upload from camera roll</p>
-                  <span className="text-saffron text-sm font-medium">Open camera →</span>
+                  <span className="text-saffron text-sm font-medium">Open camera</span>
                 </div>
                 <input ref={receiptRef} type="file" accept="image/*" capture="environment" onChange={handleReceipt} className="hidden" />
               </>
@@ -212,13 +236,13 @@ export default function UploadPage() {
                       <div><p className="text-xs text-ink-3 mb-1">Merchant</p><p className="font-medium">{receiptResult.merchant}</p></div>
                       <div><p className="text-xs text-ink-3 mb-1">Category</p>
                         <select value={receiptResult.category} onChange={e=>setReceiptResult(p=>p?{...p,category:e.target.value}:p)} className="input-field">
-                          {CATEGORIES.map(c=><option key={c} value={c}>{EMOJIS[c]} {c}</option>)}
+                          {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                     </div>
                   </div>
                 )}
-                {receiptDone && <div className="card text-center py-8 mb-4"><p className="text-3xl mb-2">✅</p><p className="font-medium">Receipt saved!</p></div>}
+                {receiptDone && <div className="card text-center py-8 mb-4"><CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-safe" /><p className="font-medium">Receipt saved!</p></div>}
                 {error && <div className="bg-red-50 text-danger text-sm px-4 py-3 rounded-xl mb-4">{error}</div>}
                 {!receiptDone && receiptResult && !receiptScanning && (
                   <button onClick={handleSaveReceipt} className="btn-primary mb-3" disabled={saving||!receiptResult.amount}>

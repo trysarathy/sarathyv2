@@ -1,19 +1,20 @@
 'use client'
 import { useState } from 'react'
+import { Check, ChevronDown } from 'lucide-react'
 
 export const CURRENCIES = [
-  { code: 'SGD', symbol: 'S$', flag: '🇸🇬', name: 'Singapore Dollar' },
-  { code: 'INR', symbol: '₹', flag: '🇮🇳', name: 'Indian Rupee' },
-  { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
-  { code: 'GBP', symbol: '£', flag: '🇬🇧', name: 'British Pound' },
-  { code: 'AUD', symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
-  { code: 'VND', symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
-  { code: 'CNY', symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
-  { code: 'EUR', symbol: '€', flag: '🇪🇺', name: 'Euro' },
-  { code: 'CAD', symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
-  { code: 'MYR', symbol: 'RM', flag: '🇲🇾', name: 'Malaysian Ringgit' },
-  { code: 'PHP', symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
-  { code: 'BDT', symbol: '৳', flag: '🇧🇩', name: 'Bangladeshi Taka' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  { code: 'INR', symbol: 'Rs', name: 'Indian Rupee' },
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'GBP', symbol: 'GBP', name: 'British Pound' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'VND', symbol: 'VND', name: 'Vietnamese Dong' },
+  { code: 'CNY', symbol: 'CNY', name: 'Chinese Yuan' },
+  { code: 'EUR', symbol: 'EUR', name: 'Euro' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  { code: 'PHP', symbol: 'PHP', name: 'Philippine Peso' },
+  { code: 'BDT', symbol: 'BDT', name: 'Bangladeshi Taka' },
 ]
 
 interface Props {
@@ -29,39 +30,42 @@ export default function CurrencySelector({ value, onChange, label }: Props) {
   return (
     <div className="relative">
       {label && (
-        <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-2">{label}</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-3">{label}</p>
       )}
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="input-field flex items-center justify-between w-full"
+        className="input-field flex w-full items-center justify-between text-left"
+        aria-expanded={open}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{selected.flag}</span>
-          <span className="font-medium text-ink">{selected.code}</span>
-          <span className="text-ink-3 text-sm">— {selected.name}</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="rounded-lg bg-saffron-soft px-2.5 py-1 text-xs font-bold text-saffron">
+            {selected.code}
+          </span>
+          <span className="truncate text-sm font-medium text-ink">{selected.name}</span>
         </div>
-        <span className="text-ink-3">{open ? '↑' : '↓'}</span>
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-ink-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl z-50 max-h-72 overflow-y-auto border border-cream-3">
+          <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-2xl border border-line bg-white shadow-xl">
             {CURRENCIES.map(c => (
               <button
                 key={c.code}
+                type="button"
                 onClick={() => { onChange(c.code); setOpen(false) }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-cream transition-colors border-b border-cream last:border-0 ${
+                className={`flex w-full items-center gap-3 border-b border-cream px-4 py-3 text-left last:border-0 hover:bg-cream ${
                   value === c.code ? 'bg-saffron-soft' : ''
                 }`}
               >
-                <span className="text-xl">{c.flag}</span>
-                <div>
-                  <p className="font-medium text-ink text-sm">{c.code}</p>
-                  <p className="text-xs text-ink-3">{c.name}</p>
+                <span className="w-12 text-sm font-bold text-ink">{c.code}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">{c.name}</p>
+                  <p className="text-xs text-ink-3">{c.symbol}</p>
                 </div>
-                <span className="ml-auto text-sm font-semibold text-ink-3">{c.symbol}</span>
-                {value === c.code && <span className="text-saffron text-sm">✓</span>}
+                {value === c.code && <Check className="h-4 w-4 text-saffron" />}
               </button>
             ))}
           </div>

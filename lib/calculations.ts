@@ -40,14 +40,13 @@ export function calculateSafeToSpend(
   else if (safeToSpend < dailyIdeal * 0.5) status = 'tight'
 
   // Safety line in plain language
-  const safeUntilDay = Math.round(today + (freeToUse / Math.max(alreadySpent / Math.max(today, 1), 1)))
   let safetyLine = ''
   if (status === 'safe') {
-    safetyLine = `You're safe till the ${daysInMonth}th 🟢`
+    safetyLine = `You're safe through the ${daysInMonth}th`
   } else if (status === 'tight') {
-    safetyLine = `A bit tight — watch spending till the ${daysInMonth}th 🟡`
+    safetyLine = `A bit tight - watch spending through the ${daysInMonth}th`
   } else {
-    safetyLine = `At risk this week — let's fix it 🔴`
+    safetyLine = `At risk this week - let's fix it`
   }
 
   return {
@@ -84,11 +83,23 @@ export function groupEntriesByCategory(entries: BudgetEntry[]): PLCategory[] {
 }
 
 export function formatCurrency(amount: number, currency: string = 'SGD'): string {
-  if (currency === 'SGD') return `S$${amount.toFixed(0)}`
-  if (currency === 'INR') return `₹${amount.toFixed(0)}`
-  if (currency === 'USD') return `$${amount.toFixed(0)}`
-  if (currency === 'GBP') return `£${amount.toFixed(0)}`
-  return `${currency} ${amount.toFixed(0)}`
+  const rounded = amount.toFixed(0)
+  const symbols: Record<string, string> = {
+    SGD: 'S$',
+    INR: 'Rs ',
+    USD: '$',
+    GBP: 'GBP ',
+    AUD: 'A$',
+    CAD: 'C$',
+    MYR: 'RM ',
+    EUR: 'EUR ',
+    CNY: 'CNY ',
+    VND: 'VND ',
+    PHP: 'PHP ',
+    BDT: 'BDT ',
+  }
+
+  return `${symbols[currency] || `${currency} `}${rounded}`
 }
 
 export function getCategoryEmoji(category: string): string {

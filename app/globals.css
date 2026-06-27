@@ -7,9 +7,13 @@
     --saffron: #F97316;
     --saffron-dark: #EA580C;
     --saffron-soft: #FFF3E8;
-    --cream: #FFFAF7;
+    --cream: #F8F4EF;
+    --surface: #FFFFFF;
+    --line: #EDE7DF;
     --plum: #1E0A2E;
     --ink: #1C0A00;
+    --muted: #7A6254;
+    --mint: #E9F8F0;
     --safe: #10B981;
     --danger: #F43F5E;
     --warning: #F59E0B;
@@ -24,9 +28,22 @@
   }
 
   body {
-    background-color: #FFFAF7;
+    background-color: #FFFFFF;
     color: #1C0A00;
     min-height: 100dvh;
+  }
+
+  button,
+  a,
+  input {
+    font: inherit;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible {
+    outline: 2px solid #F97316;
+    outline-offset: 3px;
   }
 }
 
@@ -38,23 +55,24 @@
   .safe-number {
     font-family: 'Fraunces', serif;
     font-weight: 600;
-    font-size: 3.5rem;
+    font-size: clamp(3.25rem, 16vw, 4.75rem);
     line-height: 1;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 
   .card {
     background: white;
-    border-radius: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
     padding: 16px;
-    box-shadow: 0 1px 3px rgba(28,10,0,0.06);
+    box-shadow: 0 8px 24px rgba(30,10,46,0.04);
   }
 
   .btn-primary {
     background: #F97316;
     color: white;
-    border-radius: 12px;
-    padding: 14px 24px;
+    border-radius: 14px;
+    padding: 14px 20px;
     font-weight: 600;
     font-size: 15px;
     transition: all 0.15s;
@@ -72,11 +90,18 @@
     background: #EA580C;
   }
 
+  .btn-primary:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+  }
+
   .btn-secondary {
-    background: #FFF3E8;
-    color: #F97316;
-    border-radius: 12px;
-    padding: 14px 24px;
+    background: white;
+    color: #1C0A00;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 20px;
     font-weight: 600;
     font-size: 15px;
     transition: all 0.15s;
@@ -86,9 +111,9 @@
   }
 
   .input-field {
-    background: #FFF3E8;
-    border: 1.5px solid transparent;
-    border-radius: 12px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
     padding: 14px 16px;
     font-size: 16px;
     width: 100%;
@@ -104,11 +129,16 @@
   .tab-bar {
     position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
     background: white;
-    border-top: 1px solid rgba(28,10,0,0.06);
-    padding: 8px 0;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -10px 30px rgba(30,10,46,0.08);
+    padding: 8px 8px 7px;
     padding-bottom: env(safe-area-inset-bottom);
     display: flex;
     z-index: 50;
@@ -119,21 +149,30 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 6px;
+    justify-content: center;
+    gap: 3px;
+    min-height: 50px;
+    padding: 6px 4px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: background-color 0.15s, color 0.15s, transform 0.15s;
     text-decoration: none;
+    color: #7A6254;
   }
 
   .tab-item span {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
-    color: #8C5A32;
+    color: currentColor;
   }
 
-  .tab-item.active span {
+  .tab-item.active {
+    background: #FFF3E8;
     color: #F97316;
+  }
+
+  .tab-item:active {
+    transform: translateY(1px);
   }
 
   .sarathy-bubble {
@@ -181,9 +220,9 @@
   .status-danger { color: #F43F5E; }
 
   .meter-bar {
-    height: 8px;
+    height: 10px;
     border-radius: 4px;
-    background: #FDE8D0;
+    background: #EFEAE4;
     overflow: hidden;
   }
 
@@ -221,23 +260,35 @@
 }
 
 /* Bottom sheet */
-.bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: white;
-  border-radius: 20px 20px 0 0;
-  padding: 20px 20px;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom));
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-  z-index: 100;
-  animation: slideUp 0.3s ease;
-}
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: white;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    padding: 20px 20px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    box-shadow: 0 -20px 45px rgba(30,10,46,0.16);
+    z-index: 100;
+    animation: slideUp 0.3s ease;
+  }
+
+  .sheet-handle {
+    width: 44px;
+    height: 4px;
+    border-radius: 999px;
+    background: #E2DAD1;
+    margin: 0 auto 16px;
+  }
 
 @keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from { transform: translate(-50%, 100%); }
+  to { transform: translate(-50%, 0); }
 }
 
 .overlay {
