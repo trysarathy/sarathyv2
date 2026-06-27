@@ -81,12 +81,31 @@ function getStatementDateFallbackOrder(currency: string): DateOrder {
   return MONTH_FIRST_CURRENCIES.has(currency) ? 'month-first' : 'day-first'
 }
 
+function statementHasMixedSignedAmounts(lines: string[], amountIndices: number[]) {
+  let hasPositiveAmount = false
+  let hasNegativeAmount = false
+
+  for (const line of lines) {
+    const cols = parseCsvRow(line)
+    for (const index of amountIndices) {
+      const amount = parseSignedMoneyCell(cols[index])
+      if (amount === null) continue
+      if (amount > 0) hasPositiveAmount = true
+      if (amount < 0) hasNegativeAmount = true
+      if (hasPositiveAmount && hasNegativeAmount) return true
+    }
+  }
+
+  return false
+}
+
 function getExpenseAmount(
   cols: string[],
   debitIndices: number[],
   creditIndices: number[],
   amountIndices: number[],
   typeIndex: number | null,
+  allowPositiveAmountFallback: boolean,
 ) {
   for (const index of debitIndices) {
     const signedAmount = parseSignedMoneyCell(cols[index])
@@ -108,7 +127,7 @@ function getExpenseAmount(
     if (
       typeSaysDebit ||
       signedAmount < 0 ||
-      (typeIndex === null && debitIndices.length === 0 && creditIndices.length === 0)
+      allowPositiveAmountFallback
     ) {
       return Math.abs(signedAmount)
     }
@@ -164,6 +183,9 @@ export default function UploadPage() {
     const genericAmountIndices = findHeaderIndices(headers, [/^amount$/, /transaction amount/, /transaction value/, /^value$/])
       .filter(index => !debitIndices.includes(index) && !creditIndices.includes(index))
     const typeIndex = findHeaderIndex(headers, [/^type$/, /transaction type/, /direction/])
+    const hasExplicitMoneyDirection = typeIndex !== null || debitIndices.length > 0 || creditIndices.length > 0
+    const allowPositiveAmountFallback = !hasExplicitMoneyDirection &&
+      !statementHasMixedSignedAmounts(lines.slice(1), genericAmountIndices)
     const rawRows: Array<{ rawDate: string; description: string; amount: number }> = []
 
     for (let i = 1; i < lines.length; i++) {
@@ -171,7 +193,7 @@ export default function UploadPage() {
       if (cols.length < 3) continue
       const rawDate = cols[dateIndex]?.replace(/^\uFEFF/, '') || cols[0].replace(/^\uFEFF/, '')
       const description = cols[descriptionIndex] || cols[1]
-      const amount = getExpenseAmount(cols, debitIndices, creditIndices, genericAmountIndices, typeIndex)
+      const amount = getExpenseAmount(cols, debitIndices, creditIndices, genericAmountIndices, typeIndex, allowPositiveAmountFallback)
       if (amount && description) {
         rawRows.push({ rawDate, description, amount })
         if (rawRows.length >= 50) break
