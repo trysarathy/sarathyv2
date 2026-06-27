@@ -12,6 +12,46 @@ const CATEGORIES = ['Food','Transport','Social','Home','Family','Shopping','Heal
 interface Tx { date:string; description:string; amount:number; category:string; selected:boolean }
 type ParsedTx = Pick<Tx, 'date' | 'description' | 'amount'>
 
+function parseCsvRow(line: string) {
+  const cols: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    const next = line[i + 1]
+
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"'
+      i += 1
+      continue
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes
+      continue
+    }
+
+    if (char === ',' && !inQuotes) {
+      cols.push(current.trim())
+      current = ''
+      continue
+    }
+
+    current += char
+  }
+
+  cols.push(current.trim())
+  return cols
+}
+
+function parseMoneyCell(value: string) {
+  const normalized = value.replace(/[$,]/g, '').replace(/^\((.*)\)$/, '-$1')
+  const amount = Number.parseFloat(normalized)
+  if (!Number.isFinite(amount) || amount === 0) return null
+  return Math.abs(amount)
+}
+
 export default function UploadPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -50,17 +90,17 @@ export default function UploadPage() {
   }, [])
 
   const parseCSV = (text: string): ParsedTx[] => {
-    const lines = text.trim().split('\n')
+    const lines = text.trim().split(/\r?\n/)
     const rawRows: Array<{ rawDate: string; description: string; amount: number }> = []
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g,'').trim())
+      const cols = parseCsvRow(lines[i])
       if (cols.length < 3) continue
-      const rawDate = cols[0]
+      const rawDate = cols[0].replace(/^\uFEFF/, '')
       const description = cols[1]
       let amount = 0
       for (let j = 2; j < cols.length; j++) {
-        const n = parseFloat(cols[j].replace(/[$,]/g,''))
-        if (!isNaN(n) && n > 0) { amount = n; break }
+        const parsedAmount = parseMoneyCell(cols[j])
+        if (parsedAmount) { amount = parsedAmount; break }
       }
       if (amount > 0 && description) rawRows.push({ rawDate, description, amount })
     }
