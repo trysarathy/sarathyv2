@@ -1,4 +1,4 @@
-export type DateOrder = 'day-first' | 'month-first'
+export type DateOrder = 'day-first' | 'month-first' | 'unknown'
 
 function pad(value: number) {
   return value.toString().padStart(2, '0')
@@ -44,10 +44,12 @@ export function detectNumericDateOrder(values: Array<string | null | undefined>)
     if (second > 12 && first <= 12) monthFirstSignals += 1
   })
 
-  return monthFirstSignals > dayFirstSignals ? 'month-first' : 'day-first'
+  if (monthFirstSignals > dayFirstSignals) return 'month-first'
+  if (dayFirstSignals > monthFirstSignals) return 'day-first'
+  return 'unknown'
 }
 
-export function normalizeDateKey(value?: string | null, dateOrder: DateOrder = 'day-first') {
+export function normalizeDateKey(value?: string | null, dateOrder: DateOrder = 'unknown') {
   const trimmed = value?.trim()
   if (!trimmed) return null
 
@@ -67,6 +69,8 @@ export function normalizeDateKey(value?: string | null, dateOrder: DateOrder = '
         : second > 12 && first <= 12
         ? 'month-first'
         : dateOrder
+
+    if (inferredOrder === 'unknown') return null
 
     const day = inferredOrder === 'day-first' ? first : second
     const month = inferredOrder === 'day-first' ? second : first

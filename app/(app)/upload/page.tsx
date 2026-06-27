@@ -93,11 +93,7 @@ function getExpenseAmount(
   const hasCreditValue = creditIndices.some(index => parseSignedMoneyCell(cols[index]) !== null)
   if (hasCreditValue && !typeSaysDebit) return null
 
-  const candidateIndices = amountIndices.length
-    ? amountIndices
-    : cols.map((_, index) => index).filter(index => index >= 2)
-
-  for (const index of candidateIndices) {
+  for (const index of amountIndices) {
     const signedAmount = parseSignedMoneyCell(cols[index])
     if (signedAmount === null) continue
     if (typeSaysDebit || signedAmount < 0) return Math.abs(signedAmount)
@@ -150,7 +146,7 @@ export default function UploadPage() {
     const descriptionIndex = findHeaderIndex(headers, [/description/, /merchant/, /payee/, /narration/, /details/]) ?? 1
     const debitIndices = findHeaderIndices(headers, [/debit/, /withdraw/, /money out/, /outflow/, /paid out/, /charge/, /spent/])
     const creditIndices = findHeaderIndices(headers, [/credit/, /deposit/, /money in/, /inflow/, /income/, /refund/])
-    const genericAmountIndices = findHeaderIndices(headers, [/^amount$/, /transaction amount/, /^value$/])
+    const genericAmountIndices = findHeaderIndices(headers, [/^amount$/, /transaction amount/, /transaction value/, /^value$/])
       .filter(index => !debitIndices.includes(index) && !creditIndices.includes(index))
     const typeIndex = findHeaderIndex(headers, [/^type$/, /transaction type/, /direction/])
     const rawRows: Array<{ rawDate: string; description: string; amount: number }> = []
@@ -161,7 +157,10 @@ export default function UploadPage() {
       const rawDate = cols[dateIndex]?.replace(/^\uFEFF/, '') || cols[0].replace(/^\uFEFF/, '')
       const description = cols[descriptionIndex] || cols[1]
       const amount = getExpenseAmount(cols, debitIndices, creditIndices, genericAmountIndices, typeIndex)
-      if (amount && description) rawRows.push({ rawDate, description, amount })
+      if (amount && description) {
+        rawRows.push({ rawDate, description, amount })
+        if (rawRows.length >= 50) break
+      }
     }
     const dateOrder = detectNumericDateOrder(rawRows.map(row => row.rawDate))
     const results = rawRows.flatMap(row => {
@@ -201,10 +200,11 @@ export default function UploadPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      await supabase.from('budget_entries').insert(sel.map(t => ({
+      const { error: insertError } = await supabase.from('budget_entries').insert(sel.map(t => ({
         user_id: user.id, category: t.category, amount: t.amount,
         description: t.description, entry_date: t.date || getLocalDateKey(), logged_via: 'statement'
       })))
+      if (insertError) throw insertError
       setSaved(true)
     } catch (err: any) { setError(err.message) }
     finally { setSaving(false) }
@@ -234,10 +234,11 @@ export default function UploadPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      await supabase.from('budget_entries').insert({
+      const { error: insertError } = await supabase.from('budget_entries').insert({
         user_id: user.id, category: receiptResult.category, amount: receiptResult.amount,
         description: receiptResult.merchant, entry_date: getLocalDateKey(), logged_via: 'receipt'
       })
+      if (insertError) throw insertError
       setReceiptDone(true)
     } catch (err: any) { setError(err.message) }
     finally { setSaving(false) }

@@ -65,9 +65,11 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
 
   const selectedCurrency = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0]
   const profileCurrencyData = CURRENCIES.find(c => c.code === profileCurrency) || CURRENCIES[0]
+  const amountValue = Number(amount)
+  const canSave = Number.isFinite(amountValue) && amountValue > 0
 
   const handleSave = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!amount || parseFloat(amount) <= 0) return
+    if (!canSave) return
     const rect = e.currentTarget.getBoundingClientRect()
     setSaving(true)
     setError('')
@@ -76,7 +78,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      let finalAmount = parseFloat(amount)
+      let finalAmount = amountValue
       const originalAmount = finalAmount
       const originalCurrency = currency
       const today = getLocalDateKey()
@@ -88,7 +90,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
           const data = await res.json()
           const rate = data.rates?.[profileCurrency]
           if (!rate) throw new Error('Missing exchange rate')
-          finalAmount = parseFloat((parseFloat(amount) * rate).toFixed(2))
+          finalAmount = parseFloat((amountValue * rate).toFixed(2))
         } catch {
           setError(`Could not convert ${currency} to ${profileCurrency}. Try again or switch to ${profileCurrency}.`)
           return
@@ -103,7 +105,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
         }, { onConflict: 'user_id,entry_date' })
       }
 
-      await supabase.from('budget_entries').insert({
+      const { error: insertError } = await supabase.from('budget_entries').insert({
         user_id: user.id,
         category,
         amount: finalAmount,
@@ -113,6 +115,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
         entry_date: today,
         logged_via: 'manual',
       })
+      if (insertError) throw insertError
 
       const { data: p } = await supabase.from('profiles').select('total_xp').eq('id', user.id).single()
       await supabase.from('profiles').update({ total_xp: (p?.total_xp || 0) + 10 }).eq('id', user.id)
@@ -188,7 +191,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
             </div>
           )}
 
-          {currency !== profileCurrency && amount && parseFloat(amount) > 0 && (
+          {currency !== profileCurrency && canSave && (
             <div className="rounded-xl bg-mint px-3 py-2">
               <p className="text-xs text-ink-3">
                 Converts to {profileCurrencyData.code} at a live rate before it is added to your budget.
@@ -269,7 +272,7 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
           type="button"
           onClick={handleSave}
           className="btn-primary"
-          disabled={saving || !amount || parseFloat(amount) <= 0}
+          disabled={saving || !canSave}
         >
           {saving ? (
             <span className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
