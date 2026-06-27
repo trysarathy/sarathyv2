@@ -95,6 +95,7 @@ export function groupEntriesByCategory(entries: BudgetEntry[]): PLCategory[] {
 export function formatCurrency(amount: number, currency: string = 'SGD'): string {
   const isNegative = amount < 0
   const rounded = Math.abs(amount).toFixed(0)
+  const currencyCode = (currency || 'SGD').trim().toUpperCase()
   const symbols: Record<string, string> = {
     SGD: 'S$',
     INR: 'Rs ',
@@ -110,7 +111,7 @@ export function formatCurrency(amount: number, currency: string = 'SGD'): string
     BDT: 'BDT ',
   }
 
-  const formattedAmount = `${symbols[currency] || `${currency} `}${rounded}`
+  const formattedAmount = `${symbols[currencyCode] || `${currencyCode} `}${rounded}`
   return isNegative ? `-${formattedAmount}` : formattedAmount
 }
 

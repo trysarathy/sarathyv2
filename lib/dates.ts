@@ -8,11 +8,11 @@ function toDateKey(year: number, month: number, day: number) {
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
   if (year < 1900 || month < 1 || month > 12 || day < 1) return null
 
-  const candidate = new Date(year, month - 1, day)
+  const candidate = new Date(Date.UTC(year, month - 1, day))
   if (
-    candidate.getFullYear() !== year ||
-    candidate.getMonth() !== month - 1 ||
-    candidate.getDate() !== day
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
   ) {
     return null
   }
