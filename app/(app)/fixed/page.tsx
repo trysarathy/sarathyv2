@@ -53,8 +53,12 @@ const LEGACY_FIXED_COST_ICONS: Record<string, string> = {
   '🍔': 'food',
 }
 
+function normalizeFixedCostIcon(value?: string | null) {
+  return value ? LEGACY_FIXED_COST_ICONS[value] || value : null
+}
+
 function FixedCostGlyph({ value }: { value?: string | null }) {
-  const normalizedValue = value ? LEGACY_FIXED_COST_ICONS[value] || value : null
+  const normalizedValue = normalizeFixedCostIcon(value)
   const match = FIXED_COST_ICONS.find(item => item.value === normalizedValue)
   const Icon = match?.icon || CreditCard
   return <Icon className="h-5 w-5" />
@@ -120,7 +124,7 @@ export default function FixedCostsPage() {
   const handleEdit = (item: FixedSpending) => {
     setName(item.name)
     setAmount(item.amount.toString())
-    setEmoji(item.emoji)
+    setEmoji(normalizeFixedCostIcon(item.emoji) || 'card')
     setDueDay(item.due_day?.toString() || '')
     setEditingId(item.id)
     setShowAdd(true)
@@ -256,12 +260,13 @@ export default function FixedCostsPage() {
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
               {FIXED_COST_ICONS.map(option => {
                 const Icon = option.icon
+                const isSelected = normalizeFixedCostIcon(emoji) === option.value
                 return (
                 <button
                   key={option.value}
                   onClick={() => setEmoji(option.value)}
                   className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center ${
-                    emoji === option.value
+                    isSelected
                       ? 'bg-saffron-soft border-2 border-saffron'
                       : 'bg-cream'
                   }`}
