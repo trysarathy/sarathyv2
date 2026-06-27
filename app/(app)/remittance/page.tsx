@@ -178,15 +178,22 @@ export default function RemittancePage() {
     } catch { setSarathyTip('') }
   }
 
+  const amountValue = Number(amount)
+  const canCalculate = Number.isFinite(amountValue) && amountValue > 0
+  const provider = PROVIDERS.find(p => p.name === selectedProvider)
+  const inrAmount = canCalculate && rate ? amountValue * rate : 0
+  const fee = canCalculate ? (amountValue * (provider?.fee || 0.6)) / 100 : 0
+  const youGet = rate ? inrAmount - (fee * rate) : 0
+
   const handleSave = async () => {
-    if (!amount || !rate) return
+    if (!canCalculate || !rate || !toCurrency) return
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       await supabase.from('remittance_logs').insert({
         user_id: user.id,
-        amount_sent: parseFloat(amount),
+        amount_sent: amountValue,
         from_currency: fromCurrency,
         to_currency: toCurrency,
         rate_used: rate,
@@ -200,10 +207,6 @@ export default function RemittancePage() {
     } finally { setSaving(false) }
   }
 
-  const inrAmount = amount && rate ? parseFloat(amount) * rate : 0
-  const provider = PROVIDERS.find(p => p.name === selectedProvider)
-  const fee = amount ? (parseFloat(amount) * (provider?.fee || 0.6)) / 100 : 0
-  const youGet = rate ? inrAmount - (fee * rate) : 0
   const intro = getRemittanceIntro(profile)
 
   if (loading) return (
@@ -275,7 +278,7 @@ export default function RemittancePage() {
             <div className="flex-1">
               <p className="text-xs text-ink-3 mb-1">They receive ({toCurrency || 'home currency'})</p>
               <div className="input-field text-xl font-fraunces bg-cream text-safe">
-                {toCurrency ? (inrAmount > 0 ? formatDestinationAmount(youGet, toCurrency) : formatDestinationAmount(0, toCurrency)) : '-'}
+                {toCurrency ? (canCalculate && rate ? formatDestinationAmount(youGet, toCurrency) : formatDestinationAmount(0, toCurrency)) : '-'}
               </div>
             </div>
           </div>
@@ -307,9 +310,9 @@ export default function RemittancePage() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-ink-3">Fee: {p.fee}%</p>
-                    {amount && (
+                    {canCalculate && (
                       <p className="text-xs text-danger">
-                        -{formatCurrency((parseFloat(amount) * p.fee) / 100, fromCurrency)}
+                        -{formatCurrency((amountValue * p.fee) / 100, fromCurrency)}
                       </p>
                     )}
                   </div>
@@ -328,7 +331,7 @@ export default function RemittancePage() {
           <button
             onClick={handleSave}
             className="btn-primary"
-            disabled={saving || !amount || !rate || !toCurrency}
+            disabled={saving || !canCalculate || !rate || !toCurrency}
           >
             {saving
               ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
