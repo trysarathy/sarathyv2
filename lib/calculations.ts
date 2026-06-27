@@ -1,4 +1,16 @@
 import { BudgetEntry, FixedSpending, Profile, SafeToSpendData, SafetyStatus, PLCategory } from '@/types'
+import { compareDateKeysDesc, isDateKeyInCurrentMonth } from './dates'
+
+function ordinal(day: number) {
+  const suffix = day % 10 === 1 && day % 100 !== 11
+    ? 'st'
+    : day % 10 === 2 && day % 100 !== 12
+    ? 'nd'
+    : day % 10 === 3 && day % 100 !== 13
+    ? 'rd'
+    : 'th'
+  return `${day}${suffix}`
+}
 
 export function calculateSafeToSpend(
   profile: Profile,
@@ -20,10 +32,7 @@ export function calculateSafeToSpend(
     .reduce((sum, f) => sum + f.amount, 0)
 
   // Already spent this month
-  const currentMonthEntries = entries.filter(e => {
-    const entryDate = new Date(e.entry_date)
-    return entryDate.getMonth() === month && entryDate.getFullYear() === year
-  })
+  const currentMonthEntries = entries.filter(e => isDateKeyInCurrentMonth(e.entry_date, now))
   const alreadySpent = currentMonthEntries.reduce((sum, e) => sum + e.amount, 0)
 
   // 10% safety buffer
@@ -40,14 +49,14 @@ export function calculateSafeToSpend(
   else if (safeToSpend < dailyIdeal * 0.5) status = 'tight'
 
   // Safety line in plain language
-  const safeUntilDay = Math.round(today + (freeToUse / Math.max(alreadySpent / Math.max(today, 1), 1)))
   let safetyLine = ''
+  const monthEnd = ordinal(daysInMonth)
   if (status === 'safe') {
-    safetyLine = `You're safe till the ${daysInMonth}th 🟢`
+    safetyLine = `You're safe through the ${monthEnd}`
   } else if (status === 'tight') {
-    safetyLine = `A bit tight — watch spending till the ${daysInMonth}th 🟡`
+    safetyLine = `A bit tight - watch spending through the ${monthEnd}`
   } else {
-    safetyLine = `At risk this week — let's fix it 🔴`
+    safetyLine = `At risk this week - let's fix it`
   }
 
   return {
@@ -77,18 +86,33 @@ export function groupEntriesByCategory(entries: BudgetEntry[]): PLCategory[] {
     .map(([category, catEntries]) => ({
       category,
       total: catEntries.reduce((sum, e) => sum + e.amount, 0),
-      entries: catEntries.sort((a, b) => new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime()),
+      entries: catEntries.sort((a, b) => compareDateKeysDesc(a.entry_date, b.entry_date)),
       percentage: total > 0 ? Math.round((catEntries.reduce((sum, e) => sum + e.amount, 0) / total) * 100) : 0,
     }))
     .sort((a, b) => b.total - a.total)
 }
 
 export function formatCurrency(amount: number, currency: string = 'SGD'): string {
-  if (currency === 'SGD') return `S$${amount.toFixed(0)}`
-  if (currency === 'INR') return `₹${amount.toFixed(0)}`
-  if (currency === 'USD') return `$${amount.toFixed(0)}`
-  if (currency === 'GBP') return `£${amount.toFixed(0)}`
-  return `${currency} ${amount.toFixed(0)}`
+  const isNegative = amount < 0
+  const rounded = Math.abs(amount).toFixed(0)
+  const currencyCode = (currency || 'SGD').trim().toUpperCase()
+  const symbols: Record<string, string> = {
+    SGD: 'S$',
+    INR: 'Rs ',
+    USD: '$',
+    GBP: 'GBP ',
+    AUD: 'A$',
+    CAD: 'C$',
+    MYR: 'RM ',
+    EUR: 'EUR ',
+    CNY: 'CNY ',
+    VND: 'VND ',
+    PHP: 'PHP ',
+    BDT: 'BDT ',
+  }
+
+  const formattedAmount = `${symbols[currencyCode] || `${currencyCode} `}${rounded}`
+  return isNegative ? `-${formattedAmount}` : formattedAmount
 }
 
 export function getCategoryEmoji(category: string): string {
@@ -120,8 +144,5 @@ export function getLevelName(xp: number): string {
 
 export function getMonthEntries(entries: BudgetEntry[]): BudgetEntry[] {
   const now = new Date()
-  return entries.filter(e => {
-    const d = new Date(e.entry_date)
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  })
+  return entries.filter(e => isDateKeyInCurrentMonth(e.entry_date, now))
 }

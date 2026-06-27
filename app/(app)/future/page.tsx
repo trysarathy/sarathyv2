@@ -1,9 +1,22 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { BarChart3, CheckCircle2, Lightbulb, Rocket, Sparkles, Sprout } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, groupEntriesByCategory } from '@/lib/calculations'
+import { getFutureIntro } from '@/lib/personalization'
+import { isDateKeyInCurrentMonth } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
+
+type ScenarioOption = {
+  key: 'current' | 'one' | 'two'
+  label: string
+  icon: LucideIcon
+  data: any
+}
+
+const SGD_TO_INR_REFERENCE_RATE = 61.5
 
 export default function FuturePage() {
   const router = useRouter()
@@ -35,15 +48,10 @@ export default function FuturePage() {
 
   const getProjection = () => {
     if (!profile?.planning_amount) return null
-    const now = new Date()
     const monthsToProject = 6
-    const cats = groupEntriesByCategory(entries)
-    const monthlySpend = entries
-      .filter(e => {
-        const d = new Date(e.entry_date)
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-      })
-      .reduce((s, e) => s + e.amount, 0)
+    const monthEntries = entries.filter(e => isDateKeyInCurrentMonth(e.entry_date))
+    const cats = groupEntriesByCategory(monthEntries)
+    const monthlySpend = monthEntries.reduce((s, e) => s + e.amount, 0)
 
     const topCat = cats[0]
     const topCatMonthly = topCat?.total || 0
@@ -135,31 +143,35 @@ export default function FuturePage() {
   )
 
   const proj = getProjection()
-  const currency = profile?.primary_currency || 'SGD'
+  const currency = (profile?.primary_currency || 'SGD').trim().toUpperCase()
+  const fallbackIntro = getFutureIntro(profile)
 
   if (!proj) return (
     <div className="min-h-dvh bg-cream px-5 pt-12">
-      <h1 className="font-fraunces text-2xl font-semibold text-ink mb-3">Future you</h1>
+      <h1 className="font-fraunces text-2xl font-semibold text-ink mb-3">{fallbackIntro.title}</h1>
       <div className="card text-center py-8">
-        <p className="text-3xl mb-3">🌱</p>
+        <Sprout className="mx-auto mb-3 h-10 w-10 text-saffron" />
         <p className="font-medium text-ink mb-1">Set your budget first</p>
-        <p className="text-ink-3 text-sm">Complete onboarding to see your future scenarios</p>
+        <p className="text-ink-3 text-sm">Complete onboarding to see scenarios tuned to your monthly plan.</p>
       </div>
       <TabBar active="story" />
     </div>
   )
 
-  const scenarios = [
-    { key: 'current', label: 'If nothing changes', emoji: '📊', data: proj.current },
-    { key: 'one', label: 'One small change', emoji: '✨', data: proj.one },
-    { key: 'two', label: 'Two changes', emoji: '🚀', data: proj.two },
-  ] as const
+  const intro = getFutureIntro(profile, proj.topCat?.category)
+  const topCategoryTotal = proj.topCat?.total ?? 0
+
+  const scenarios: ScenarioOption[] = [
+    { key: 'current', label: 'If nothing changes', icon: BarChart3, data: proj.current },
+    { key: 'one', label: 'One small change', icon: Sparkles, data: proj.one },
+    { key: 'two', label: 'Two changes', icon: Rocket, data: proj.two },
+  ]
 
   return (
     <div className="min-h-dvh bg-cream pb-24">
       <div className="px-5 pt-12 pb-4">
-        <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">Future you</h1>
-        <p className="text-ink-3 text-sm">6 months from now — three versions of your financial life</p>
+        <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">{intro.title}</h1>
+        <p className="text-ink-3 text-sm">{intro.subtitle}</p>
       </div>
 
       <div className="px-5 flex flex-col gap-4">
@@ -167,8 +179,9 @@ export default function FuturePage() {
         {/* Scenario selector */}
         <div className="flex flex-col gap-2">
           {scenarios.map(s => {
-            const impact = getGoalImpact((s.data as any).saved)
+            const impact = getGoalImpact(s.data.saved)
             const isSelected = scenario === s.key
+            const Icon = s.icon
             return (
               <button
                 key={s.key}
@@ -179,7 +192,7 @@ export default function FuturePage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{s.emoji}</span>
+                    <Icon className="h-5 w-5 text-saffron" />
                     <p className="font-semibold text-ink text-sm">{s.label}</p>
                   </div>
                   <p className={`font-fraunces text-xl font-semibold ${
@@ -190,21 +203,25 @@ export default function FuturePage() {
                   </p>
                 </div>
 
-                {(s.data as any).change && (
-                  <p className="text-xs text-ink-3 mb-1">
-                    💡 {(s.data as any).change}
-                    {(s.data as any).saving > 0 && (
-                      <span className="text-safe font-medium"> · saves {formatCurrency((s.data as any).saving, currency)}/mo</span>
-                    )}
-                  </p>
+                {s.data.change && (
+                  <div className="mb-1 flex items-start gap-1.5 text-xs text-ink-3">
+                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-saffron" />
+                    <p>
+                      {s.data.change}
+                      {s.data.saving > 0 && (
+                        <span className="text-safe font-medium"> saves {formatCurrency(s.data.saving, currency)}/mo</span>
+                      )}
+                    </p>
+                  </div>
                 )}
 
                 {impact && impact.pct > 0 && (
                   <div className="mt-2">
-                    <p className="text-xs text-ink-3">
-                      {impact.goal.emoji} {impact.goal.name}:
-                      <span className={`font-medium ml-1 ${impact.pct >= 100 ? 'text-safe' : 'text-saffron'}`}>
-                        {impact.pct >= 100 ? '✅ Fully funded!' : `${impact.pct}% funded`}
+                    <p className="flex items-center gap-1.5 text-xs text-ink-3">
+                      <CheckCircle2 className={`h-3.5 w-3.5 ${impact.pct >= 100 ? 'text-safe' : 'text-saffron'}`} />
+                      {impact.goal.name}:
+                      <span className={`font-medium ${impact.pct >= 100 ? 'text-safe' : 'text-saffron'}`}>
+                        {impact.pct >= 100 ? 'Fully funded' : `${impact.pct}% funded`}
                       </span>
                     </p>
                     {impact.pct < 100 && (
@@ -225,15 +242,15 @@ export default function FuturePage() {
               Your {proj.topCat.category} spending this month
             </p>
             <p className="font-fraunces text-2xl font-semibold text-ink mb-2">
-              {formatCurrency(proj.topCat.total, currency)}
+              {formatCurrency(topCategoryTotal, currency)}
             </p>
-            {profile?.home_country === 'India' || profile?.secondary_currency === 'INR' ? (
+            {(profile?.home_country === 'India' || profile?.secondary_currency === 'INR') && currency === 'SGD' ? (
               <p className="text-xs text-ink-3">
-                That's ₹{Math.round(proj.topCat.total * 62).toLocaleString('en-IN')} — about {Math.round(proj.topCat.total * 62 / 3500)} weeks of groceries back home
+                That's INR {Math.round(topCategoryTotal * SGD_TO_INR_REFERENCE_RATE).toLocaleString('en-IN')}, about {Math.round(topCategoryTotal * SGD_TO_INR_REFERENCE_RATE / 3500)} weeks of groceries back home
               </p>
             ) : (
               <p className="text-xs text-ink-3">
-                That's {Math.round(proj.topCat.total / 12)} days of daily spending, or {Math.round((proj.topCat.total / (profile?.planning_amount || 1)) * 100)}% of your monthly budget
+                That's {Math.round(topCategoryTotal / 12)} days of daily spending, or {Math.round((topCategoryTotal / (profile?.planning_amount || 1)) * 100)}% of your monthly budget
               </p>
             )}
           </div>
@@ -246,7 +263,7 @@ export default function FuturePage() {
           </p>
           {aiNarrative ? (
             <div className="flex items-start gap-2">
-              <span className="text-lg">🌸</span>
+              <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-saffron" />
               <p className="text-sm text-ink leading-relaxed">{aiNarrative}</p>
             </div>
           ) : (
@@ -257,7 +274,7 @@ export default function FuturePage() {
             >
               {aiLoading
                 ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : 'Show me my future 🌸'}
+                : 'Show me my future'}
             </button>
           )}
         </div>

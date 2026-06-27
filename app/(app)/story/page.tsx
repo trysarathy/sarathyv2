@@ -1,9 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { FileText, Target, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { Profile, Goal } from '@/types'
 import { formatCurrency, getLevelName } from '@/lib/calculations'
+import { getStoryIntro } from '@/lib/personalization'
 import TabBar from '@/components/ui/TabBar'
 
 export default function StoryPage() {
@@ -37,19 +39,25 @@ export default function StoryPage() {
   }
 
   const currency = profile.primary_currency || 'SGD'
+  const intro = getStoryIntro(profile)
 
   return (
     <div className="min-h-dvh bg-cream pb-24 px-5 pt-12">
       <div className="mb-6">
-        <h1 className="font-fraunces text-2xl font-semibold text-ink">My Story</h1>
-        <p className="text-ink-3 text-sm mt-1">Your financial journey, in your words.</p>
+        <h1 className="font-fraunces text-2xl font-semibold text-ink capitalize">{intro.title}</h1>
+        <p className="text-ink-3 text-sm mt-1">{intro.subtitle}</p>
       </div>
 
       {/* Persona card */}
       <div className="bg-gradient-to-br from-saffron to-orange-600 rounded-2xl p-5 text-white mb-4">
-        <p className="text-xs font-medium opacity-75 mb-1">Your financial persona</p>
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+            <Trophy className="h-5 w-5" />
+          </div>
+          <p className="text-xs font-medium uppercase tracking-wide opacity-75">Your financial persona</p>
+        </div>
         <p className="font-fraunces text-xl font-semibold mb-1">The {getLevelName(profile.total_xp)}</p>
-        <p className="text-xs opacity-75">{profile.total_xp} XP · Level {profile.level}</p>
+        <p className="text-xs opacity-75">{profile.total_xp} XP, Level {profile.level}</p>
       </div>
 
       {/* Goals */}
@@ -58,7 +66,8 @@ export default function StoryPage() {
         <div className="flex flex-col gap-3">
           {goals.length === 0 ? (
             <div className="card text-center text-ink-3 text-sm py-6">
-              No goals yet — ask Sarathy to help you set one 🎯
+              <Target className="mx-auto mb-3 h-8 w-8 text-saffron" />
+              No goals yet. Ask Sarathy to help you set one that fits your real month.
             </div>
           ) : (
             goals.map(goal => {
@@ -93,10 +102,13 @@ export default function StoryPage() {
 
       {/* Letter placeholder */}
       <div className="card border-2 border-dashed border-saffron/30">
-        <p className="text-xs font-medium text-saffron mb-2">📝 Monthly letter</p>
+        <div className="mb-2 flex items-center gap-2 text-saffron">
+          <FileText className="h-4 w-4" />
+          <p className="text-xs font-medium">Monthly letter</p>
+        </div>
         <p className="text-ink-3 text-sm">
           Sarathy will write you a personal letter at the end of your first month.
-          Come back then 🌸
+          Come back then.
         </p>
       </div>
 

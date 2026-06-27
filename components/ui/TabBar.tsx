@@ -1,5 +1,7 @@
 'use client'
 import Link from 'next/link'
+import { BookOpen, Home, MessageCircle, UserRound, UsersRound } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 type TabId = 'home' | 'sarathy' | 'circles' | 'story' | 'profile'
 
@@ -7,27 +9,32 @@ interface Props {
   active: TabId
 }
 
-const tabs = [
-  { id: 'home', href: '/home', label: 'Today', emoji: '🏠' },
-  { id: 'circles', href: '/circles', label: 'Circles', emoji: '👥' },
-  { id: 'sarathy', href: '/sarathy', label: 'Sarathy', emoji: '💬' },
-  { id: 'story', href: '/story', label: 'My Story', emoji: '📖' },
-  { id: 'profile', href: '/profile', label: 'Profile', emoji: '👤' },
+const tabs: Array<{ id: TabId; href: string; label: string; icon: LucideIcon }> = [
+  { id: 'home', href: '/home', label: 'Today', icon: Home },
+  { id: 'circles', href: '/circles', label: 'Circles', icon: UsersRound },
+  { id: 'sarathy', href: '/sarathy', label: 'Sarathy', icon: MessageCircle },
+  { id: 'story', href: '/story', label: 'Story', icon: BookOpen },
+  { id: 'profile', href: '/profile', label: 'Profile', icon: UserRound },
 ]
 
 export default function TabBar({ active }: Props) {
   return (
-    <div className="tab-bar">
-      {tabs.map(tab => (
-        <Link
-          key={tab.id}
-          href={tab.href}
-          className={`tab-item ${active === tab.id ? 'active' : ''}`}
-        >
-          <span className="text-xl">{tab.emoji}</span>
-          <span className="text-[10px]">{tab.label}</span>
-        </Link>
-      ))}
-    </div>
+    <nav className="tab-bar" aria-label="Primary navigation">
+      {tabs.map(tab => {
+        const Icon = tab.icon
+
+        return (
+          <Link
+            key={tab.id}
+            href={tab.href}
+            className={`tab-item ${active === tab.id ? 'active' : ''}`}
+            aria-current={active === tab.id ? 'page' : undefined}
+          >
+            <Icon className="h-5 w-5" strokeWidth={active === tab.id ? 2.4 : 2} />
+            <span>{tab.label}</span>
+          </Link>
+        )
+      })}
+    </nav>
   )
 }

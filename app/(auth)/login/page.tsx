@@ -28,60 +28,66 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-cream flex flex-col px-6 pt-16 pb-8">
-      <div className="mb-10">
-        <h1 className="font-fraunces text-3xl font-semibold text-ink mb-2">Welcome back 🌸</h1>
-        <p className="text-ink-3 text-sm">Sarathy has been keeping an eye on things.</p>
-      </div>
-
-      <form onSubmit={handleLogin} className="flex flex-col gap-4 flex-1">
-        <div>
-          <label className="text-sm font-medium text-ink-3 mb-2 block">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            className="input-field"
-            required
-            autoComplete="email"
-          />
+    <div className="min-h-dvh bg-white">
+      <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col bg-white px-6 pb-8 pt-14">
+        <div className="mb-10">
+          <p className="font-fraunces text-4xl font-semibold text-plum">Sarathy</p>
+          <h1 className="mb-2 mt-8 font-fraunces text-3xl font-semibold text-ink">Welcome back</h1>
+          <p className="text-sm text-ink-3">Sarathy has been keeping an eye on things.</p>
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-ink-3 mb-2 block">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="input-field"
-            required
-            autoComplete="current-password"
-          />
-        </div>
-
-        {error && (
-          <div className="bg-red-50 text-danger text-sm px-4 py-3 rounded-xl">
-            {error}
+        <form onSubmit={handleLogin} className="flex flex-1 flex-col gap-4">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-ink-3">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@email.com"
+              className="input-field"
+              required
+              autoComplete="email"
+            />
           </div>
-        )}
 
-        <div className="mt-auto pt-4">
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? (
-              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : 'Sign in'}
-          </button>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-ink-3">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="input-field"
+              required
+              autoComplete="current-password"
+            />
+          </div>
 
-          <p className="text-center mt-4 text-sm text-ink-3">
-            New here?{' '}
-            <Link href="/signup" className="text-saffron font-medium">
-              Create your account
-            </Link>
-          </p>
-        </div>
-      </form>
+          {error && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-danger" role="alert" aria-live="polite">
+              {error}
+            </div>
+          )}
+
+          <div className="mt-auto pt-4">
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  Signing in
+                </span>
+              ) : 'Sign in'}
+            </button>
+
+            <p className="mt-4 text-center text-sm text-ink-3">
+              New here?{' '}
+              <Link href="/signup" className="font-medium text-saffron">
+                Create your account
+              </Link>
+            </p>
+          </div>
+        </form>
+      </main>
     </div>
   )
 }

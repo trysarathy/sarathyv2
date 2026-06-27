@@ -1,9 +1,28 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  HeartHandshake,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Trophy,
+  TrendingDown,
+  TrendingUp,
+  Utensils,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, groupEntriesByCategory, getMonthEntries } from '@/lib/calculations'
+import { getInsightsIntro } from '@/lib/personalization'
+import { isDateKeyInMonth } from '@/lib/dates'
 import TabBar from '@/components/ui/TabBar'
+
+type Persona = {
+  name: string
+  icon: LucideIcon
+  desc: string
+}
 
 export default function InsightsPage() {
   const router = useRouter()
@@ -32,23 +51,24 @@ export default function InsightsPage() {
     load()
   }, [])
 
-  const getPersona = () => {
-    if (!entries.length) return { name: 'Just getting started', emoji: '🌱', desc: 'Keep logging to discover your money personality' }
+  const getPersona = (): Persona => {
+    if (!entries.length) return { name: 'Just getting started', icon: Sparkles, desc: 'Keep logging to discover your money personality' }
     const cats = groupEntriesByCategory(entries)
     const top = cats[0]?.category
     const anxious = moodLogs.filter(m => m.mood === 'anxious' || m.mood === 'stressed').length
     const total = moodLogs.length
-    if (anxious / Math.max(total, 1) > 0.5) return { name: 'The Anxious Achiever', emoji: '💪', desc: 'You care deeply about money. Your awareness is your biggest strength.' }
-    if (top === 'Food') return { name: 'The Comfort Spender', emoji: '🍔', desc: 'Food is your happy place. You spend on experiences with people you love.' }
-    if (top === 'Family') return { name: 'The Family Guardian', emoji: '❤️', desc: 'You put people before things. That is rare and worth protecting.' }
-    if (top === 'Shopping') return { name: 'The Visionary Spender', emoji: '✨', desc: 'You invest in yourself and things that make life better.' }
-    return { name: 'The Quiet Champion', emoji: '🏆', desc: 'Steady, consistent, reliable. You are building something real.' }
+    if (anxious / Math.max(total, 1) > 0.5) return { name: 'The Anxious Achiever', icon: ShieldCheck, desc: 'You care deeply about money. Your awareness is your biggest strength.' }
+    if (top === 'Food') return { name: 'The Comfort Spender', icon: Utensils, desc: 'Food is your happy place. You spend on experiences with people you love.' }
+    if (top === 'Family') return { name: 'The Family Guardian', icon: HeartHandshake, desc: 'You put people before things. That is rare and worth protecting.' }
+    if (top === 'Shopping') return { name: 'The Visionary Spender', icon: ShoppingBag, desc: 'You invest in yourself and things that make life better.' }
+    return { name: 'The Quiet Champion', icon: Trophy, desc: 'Steady, consistent, reliable. You are building something real.' }
   }
 
   const getTrend = () => {
     const now = new Date()
-    const thisMonth = entries.filter(e => { const d = new Date(e.entry_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() })
-    const lastMonth = entries.filter(e => { const d = new Date(e.entry_date); const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear() })
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const thisMonth = entries.filter(e => isDateKeyInMonth(e.entry_date, now.getFullYear(), now.getMonth()))
+    const lastMonth = entries.filter(e => isDateKeyInMonth(e.entry_date, lastMonthDate.getFullYear(), lastMonthDate.getMonth()))
     const t = thisMonth.reduce((s, e) => s + e.amount, 0)
     const l = lastMonth.reduce((s, e) => s + e.amount, 0)
     if (!l) return null
@@ -106,18 +126,22 @@ export default function InsightsPage() {
   const pattern = getPattern()
   const cats = groupEntriesByCategory(getMonthEntries(entries))
   const currency = profile?.primary_currency || 'SGD'
+  const intro = getInsightsIntro(profile)
+  const PersonaIcon = persona.icon
 
   return (
     <div className="min-h-dvh bg-cream pb-24">
       <div className="px-5 pt-12 pb-4">
-        <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">My financial DNA</h1>
-        <p className="text-ink-3 text-sm">What your data says about you</p>
+        <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">{intro.title}</h1>
+        <p className="text-ink-3 text-sm">{intro.subtitle}</p>
       </div>
       <div className="px-5 flex flex-col gap-4">
         <div className="bg-gradient-to-br from-plum to-plum-2 rounded-2xl p-5 text-white">
           <p className="text-xs font-medium opacity-60 mb-2 uppercase tracking-wide">Your money personality</p>
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl">{persona.emoji}</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/12">
+              <PersonaIcon className="h-5 w-5" />
+            </div>
             <p className="font-fraunces text-xl font-semibold">{persona.name}</p>
           </div>
           <p className="text-sm opacity-80 leading-relaxed">{persona.desc}</p>
@@ -128,8 +152,9 @@ export default function InsightsPage() {
           <div className="card">
             <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">Month vs last month</p>
             <div className="flex items-center gap-3">
-              <div className={`text-2xl font-fraunces font-semibold ${trend.diff > 0 ? 'text-danger' : 'text-safe'}`}>
-                {trend.diff > 0 ? '↑' : '↓'} {Math.abs(trend.diff)}%
+              <div className={`flex items-center gap-1 text-2xl font-fraunces font-semibold ${trend.diff > 0 ? 'text-danger' : 'text-safe'}`}>
+                {trend.diff > 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                {Math.abs(trend.diff)}%
               </div>
               <div>
                 <p className="text-sm text-ink">{trend.diff > 0 ? 'Spending more' : 'Spending less'} than last month</p>
@@ -166,12 +191,12 @@ export default function InsightsPage() {
             <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-2">Mood x money</p>
             {pattern.anxiousHigh > 0 ? (
               <>
-                <p className="text-sm font-medium text-ink mb-1">You spend more when anxious 😰</p>
-                <p className="text-xs text-ink-3">On {pattern.anxiousHigh} anxious days you spent above average. This is extremely common — and now you know.</p>
+                <p className="text-sm font-medium text-ink mb-1">You spend more when anxious</p>
+                <p className="text-xs text-ink-3">On {pattern.anxiousHigh} anxious days you spent above average. This is common, and now you can plan for it.</p>
               </>
             ) : (
               <>
-                <p className="text-sm font-medium text-ink mb-1">Anxiety does not drive your spending ✅</p>
+                <p className="text-sm font-medium text-ink mb-1">Anxiety does not drive your spending</p>
                 <p className="text-xs text-ink-3">Even on stressed days your spending stays consistent. That is real discipline.</p>
               </>
             )}
@@ -182,12 +207,12 @@ export default function InsightsPage() {
           <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">Sarathy insight</p>
           {aiInsight ? (
             <div className="flex items-start gap-2">
-              <span className="text-lg">🌸</span>
+              <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-saffron" />
               <p className="text-sm text-ink leading-relaxed">{aiInsight}</p>
             </div>
           ) : (
             <button onClick={generateInsight} className="btn-primary" disabled={insightLoading || entries.length < 3}>
-              {insightLoading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : entries.length < 3 ? 'Log 3+ expenses to unlock' : 'Get my personal insight 🌸'}
+              {insightLoading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : entries.length < 3 ? 'Log 3+ expenses to unlock' : 'Get my personal insight'}
             </button>
           )}
         </div>

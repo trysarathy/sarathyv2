@@ -1,22 +1,33 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  CheckCircle2,
+  ClipboardList,
+  Plane,
+  ShoppingBag,
+  Sparkles,
+  Utensils,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { calculateSafeToSpend, formatCurrency } from '@/lib/calculations'
+import { getMoneyCheckIntro } from '@/lib/personalization'
+import { Profile, SafeToSpendData } from '@/types'
 import TabBar from '@/components/ui/TabBar'
 
-const QUICK_CHECKS = [
-  { label: 'Dinner out', emoji: '🍽️', amount: 30 },
-  { label: 'Weekend trip', emoji: '✈️', amount: 200 },
-  { label: 'Shopping', emoji: '🛍️', amount: 100 },
-  { label: 'Big bill', emoji: '📋', amount: 500 },
+const QUICK_CHECKS: Array<{ label: string; icon: LucideIcon; amount: number }> = [
+  { label: 'Dinner out', icon: Utensils, amount: 30 },
+  { label: 'Weekend trip', icon: Plane, amount: 200 },
+  { label: 'Shopping', icon: ShoppingBag, amount: 100 },
+  { label: 'Big bill', icon: ClipboardList, amount: 500 },
 ]
 
 export default function CheckPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [profile, setProfile] = useState<any>(null)
-  const [safeData, setSafeData] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [safeData, setSafeData] = useState<SafeToSpendData | null>(null)
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<'afford' | 'impulse' | 'whatif'>('afford')
 
@@ -48,8 +59,9 @@ export default function CheckPage() {
       ])
 
       if (profileRes.data) {
-        setProfile(profileRes.data)
-        const safe = calculateSafeToSpend(profileRes.data, entriesRes.data || [], fixedRes.data || [])
+        const loadedProfile = profileRes.data as Profile
+        setProfile(loadedProfile)
+        const safe = calculateSafeToSpend(loadedProfile, entriesRes.data || [], fixedRes.data || [])
         setSafeData(safe)
       }
       setLoading(false)
@@ -90,7 +102,7 @@ export default function CheckPage() {
       const data = await response.json()
       setAffordResult(data.message)
     } catch {
-      setAffordResult('Having trouble connecting — try again in a moment.')
+      setAffordResult('Having trouble connecting. Try again in a moment.')
     } finally { setChecking(false) }
   }
 
@@ -126,7 +138,7 @@ export default function CheckPage() {
       const data = await response.json()
       setImpulseResult(data.message)
     } catch {
-      setImpulseResult('Having trouble connecting — try again.')
+      setImpulseResult('Having trouble connecting. Try again.')
     } finally { setChecking(false) }
   }
 
@@ -171,7 +183,7 @@ export default function CheckPage() {
       const data = await response.json()
       setWhatifResult(data.message)
     } catch {
-      setWhatifResult('Having trouble connecting — try again.')
+      setWhatifResult('Having trouble connecting. Try again.')
     } finally { setChecking(false) }
   }
 
@@ -182,12 +194,13 @@ export default function CheckPage() {
   )
 
   const currency = safeData?.currency || 'SGD'
+  const intro = getMoneyCheckIntro(profile, safeData)
 
   return (
     <div className="min-h-dvh bg-cream pb-24">
       <div className="px-5 pt-12 pb-4">
-        <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">Money check</h1>
-        <p className="text-ink-3 text-sm">Ask Sarathy before you decide</p>
+        <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">{intro.title}</h1>
+        <p className="text-ink-3 text-sm">{intro.subtitle}</p>
       </div>
 
       {/* Mode tabs */}
@@ -214,16 +227,19 @@ export default function CheckPage() {
             <div className="card mb-4">
               <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">Quick checks</p>
               <div className="grid grid-cols-2 gap-2">
-                {QUICK_CHECKS.map(q => (
+                {QUICK_CHECKS.map(q => {
+                  const Icon = q.icon
+                  return (
                   <button key={q.label} onClick={() => { setItem(q.label); setAmount(q.amount.toString()); handleAffordCheck(q.amount, q.label) }}
                     className="flex items-center gap-2 p-3 rounded-xl bg-cream active:bg-saffron-soft transition-colors text-left">
-                    <span className="text-xl">{q.emoji}</span>
+                    <Icon className="h-5 w-5 flex-shrink-0 text-saffron" />
                     <div>
                       <p className="text-xs font-medium text-ink">{q.label}</p>
                       <p className="text-xs text-ink-3">{formatCurrency(q.amount, currency)}</p>
                     </div>
                   </button>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
@@ -234,14 +250,14 @@ export default function CheckPage() {
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="How much?" className="input-field mb-3" inputMode="decimal" />
               <button onClick={() => handleAffordCheck()} className="btn-primary" disabled={checking || !amount}>
-                {checking ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Ask Sarathy →'}
+                {checking ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Ask Sarathy'}
               </button>
             </div>
 
             {affordResult && (
               <div className="card border-l-4 border-saffron">
                 <div className="flex items-start gap-2">
-                  <span className="text-lg mt-0.5">🌸</span>
+                  <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-saffron" />
                   <p className="text-sm text-ink leading-relaxed">{affordResult}</p>
                 </div>
               </div>
@@ -253,8 +269,8 @@ export default function CheckPage() {
         {mode === 'impulse' && (
           <>
             <div className="card mb-4 border-l-4 border-warning">
-              <p className="text-sm font-medium text-ink mb-1">⏸️ Pause before you buy</p>
-              <p className="text-xs text-ink-3">30-second reality check. Most impulse buys feel different after this.</p>
+              <p className="text-sm font-medium text-ink mb-1">{intro.impulseTitle}</p>
+              <p className="text-xs text-ink-3">{intro.impulseBody}</p>
             </div>
 
             {!impulseDecision ? (
@@ -265,7 +281,7 @@ export default function CheckPage() {
                   <input type="number" value={impulseAmount} onChange={e => setImpulseAmount(e.target.value)}
                     placeholder="How much?" className="input-field mb-3" inputMode="decimal" />
                   <button onClick={handleImpulseCheck} className="btn-primary" disabled={checking || !impulseItem || !impulseAmount}>
-                    {checking ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Get honest reality check →'}
+                    {checking ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Get honest reality check'}
                   </button>
                 </div>
 
@@ -273,14 +289,14 @@ export default function CheckPage() {
                   <>
                     <div className="card border-l-4 border-saffron mb-4">
                       <div className="flex items-start gap-2">
-                        <span className="text-lg mt-0.5">🌸</span>
+                        <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-saffron" />
                         <p className="text-sm text-ink leading-relaxed">{impulseResult}</p>
                       </div>
                     </div>
                     <div className="flex gap-3">
                       <button onClick={() => handleImpulseDecision('wait')}
                         className="flex-1 py-3 rounded-xl bg-safe text-white font-medium text-sm">
-                        I'll wait +30 XP ⚡
+                        I'll wait +30 XP
                       </button>
                       <button onClick={() => handleImpulseDecision('buy')}
                         className="flex-1 py-3 rounded-xl bg-cream text-ink font-medium text-sm border border-gray-200">
@@ -294,14 +310,14 @@ export default function CheckPage() {
               <div className="card text-center py-8">
                 {impulseDecision === 'wait' ? (
                   <>
-                    <p className="text-4xl mb-3">��</p>
+                    <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-safe" />
                     <p className="font-fraunces text-xl font-semibold text-ink mb-1">Nice one!</p>
-                    <p className="text-ink-3 text-sm mb-2">+30 XP earned for pausing 🌸</p>
-                    <p className="text-ink-3 text-sm">Come back in 24 hours — if you still want it, it's worth it.</p>
+                    <p className="text-ink-3 text-sm mb-2">+30 XP earned for pausing.</p>
+                    <p className="text-ink-3 text-sm">Come back in 24 hours. If you still want it, it may be worth it.</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-4xl mb-3">✅</p>
+                    <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-saffron" />
                     <p className="font-fraunces text-xl font-semibold text-ink mb-1">Decision made!</p>
                     <p className="text-ink-3 text-sm">Don't forget to log it when you buy.</p>
                   </>
@@ -335,14 +351,14 @@ export default function CheckPage() {
               <input type="text" value={whatifAction} onChange={e => setWhatifAction(e.target.value)}
                 placeholder="What if I..." className="input-field mb-3" />
               <button onClick={handleWhatIf} className="btn-primary" disabled={checking || !whatifAction}>
-                {checking ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Show me the impact →'}
+                {checking ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Show me the impact'}
               </button>
             </div>
 
             {whatifResult && (
               <div className="card border-l-4 border-saffron">
                 <div className="flex items-start gap-2">
-                  <span className="text-lg mt-0.5">🌸</span>
+                  <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-saffron" />
                   <p className="text-sm text-ink leading-relaxed">{whatifResult}</p>
                 </div>
               </div>
