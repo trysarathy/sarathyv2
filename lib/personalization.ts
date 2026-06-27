@@ -236,7 +236,7 @@ export function getSarathyInbox(
 ) {
   const currency = safeData.currency || profile?.primary_currency || 'SGD'
   const firstName = getFirstName(profile)
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('sv-SE')
   const todayEntries = entries.filter(entry => entry.entry_date === today)
   const topCategory = categories[0]
   const todaySpent = todayEntries.reduce((sum, entry) => sum + entry.amount, 0)

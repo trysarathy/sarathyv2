@@ -34,49 +34,53 @@ export default function SarathyPage() {
   } | null>(null)
 
   const loadData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.replace('/login'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.replace('/login'); return }
 
-    const [profileRes, messagesRes, entriesRes, fixedRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('chat_messages').select('*').eq('user_id', user.id).order('created_at', { ascending: true }).limit(50),
-      supabase.from('budget_entries').select('*').eq('user_id', user.id),
-      supabase.from('fixed_spending').select('*').eq('user_id', user.id).eq('is_active', true),
-    ])
+      const [profileRes, messagesRes, entriesRes, fixedRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('chat_messages').select('*').eq('user_id', user.id).order('created_at', { ascending: true }).limit(50),
+        supabase.from('budget_entries').select('*').eq('user_id', user.id),
+        supabase.from('fixed_spending').select('*').eq('user_id', user.id).eq('is_active', true),
+      ])
 
-    if (profileRes.data) {
-      const loadedProfile = profileRes.data as Profile
-      const entries = (entriesRes.data || []) as BudgetEntry[]
-      const fixed = (fixedRes.data || []) as FixedSpending[]
-      const safeData = calculateSafeToSpend(loadedProfile, entries, fixed)
-      const monthCategories = groupEntriesByCategory(getMonthEntries(entries))
+      if (profileRes.data) {
+        const loadedProfile = profileRes.data as Profile
+        const entries = (entriesRes.data || []) as BudgetEntry[]
+        const fixed = (fixedRes.data || []) as FixedSpending[]
+        const safeData = calculateSafeToSpend(loadedProfile, entries, fixed)
+        const monthCategories = groupEntriesByCategory(getMonthEntries(entries))
 
-      setProfile(loadedProfile)
-      setTodaySignal({
-        safeToSpend: safeData.safeToSpend,
-        currency: safeData.currency,
-        status: safeData.status,
-        topCategory: monthCategories[0]?.category,
-      })
-    }
-
-    const existingMessages = (messagesRes.data || []) as ChatMessage[]
-
-    // If no messages, generate an opening message
-    if (existingMessages.length === 0 && profileRes.data) {
-      const openingMsg: ChatMessage = {
-        id: 'opening',
-        user_id: user.id,
-        role: 'assistant',
-        content: getSarathyOpening(profileRes.data as Profile),
-        created_at: new Date().toISOString(),
+        setProfile(loadedProfile)
+        setTodaySignal({
+          safeToSpend: safeData.safeToSpend,
+          currency: safeData.currency,
+          status: safeData.status,
+          topCategory: monthCategories[0]?.category,
+        })
       }
-      setMessages([openingMsg])
-    } else {
-      setMessages(existingMessages)
-    }
 
-    setLoading(false)
+      const existingMessages = (messagesRes.data || []) as ChatMessage[]
+
+      // If no messages, generate an opening message
+      if (existingMessages.length === 0 && profileRes.data) {
+        const openingMsg: ChatMessage = {
+          id: 'opening',
+          user_id: user.id,
+          role: 'assistant',
+          content: getSarathyOpening(profileRes.data as Profile),
+          created_at: new Date().toISOString(),
+        }
+        setMessages([openingMsg])
+      } else {
+        setMessages(existingMessages)
+      }
+    } catch (err) {
+      console.error('Failed to load Sarathy chat data:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { loadData() }, [loadData])

@@ -101,16 +101,16 @@ export default function RemittancePage() {
     setRateLoading(true)
     const sourceCurrency = contextProfile?.primary_currency || 'SGD'
     const destinationCurrency = getHomeCurrency(contextProfile?.home_country)
+    const fallbackRate = destinationCurrency === 'INR' ? 61.5 : 1
     try {
       const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${sourceCurrency}`)
+      if (!res.ok) throw new Error('Failed to fetch exchange rate')
       const data = await res.json()
       const liveRate = data.rates?.[destinationCurrency]
-      if (liveRate) {
-        setRate(liveRate)
-        getSarathyTip(liveRate, contextProfile)
-      }
+      if (!liveRate) throw new Error('Destination currency rate not found')
+      setRate(liveRate)
+      getSarathyTip(liveRate, contextProfile)
     } catch {
-      const fallbackRate = destinationCurrency === 'INR' ? 61.5 : 1
       setRate(fallbackRate)
       getSarathyTip(fallbackRate, contextProfile)
     } finally { setRateLoading(false) }

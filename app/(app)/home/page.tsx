@@ -412,7 +412,7 @@ export default function HomePage() {
               <p className="text-lg font-semibold text-plum">This month</p>
             </div>
 
-            {profile.planning_amount && (
+            {!!profile.planning_amount && (
               <div className="flex items-center justify-between gap-3 border-b border-cream px-4 py-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-mint text-safe">
@@ -457,7 +457,7 @@ export default function HomePage() {
               ))
             )}
 
-            {profile.planning_amount && (
+            {!!profile.planning_amount && (
               <div className="flex items-center justify-between bg-cream/70 px-4 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint text-safe">

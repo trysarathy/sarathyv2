@@ -30,14 +30,20 @@ export default function UploadPage() {
 
   useEffect(() => {
     const guard = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          router.replace('/login')
+          return
+        }
+        const { data: p } = await supabase.from('profiles').select('primary_currency').eq('id', user.id).single()
+        if (p) setCurrency(p.primary_currency || 'SGD')
+      } catch (err) {
+        console.error('Auth guard error:', err)
         router.replace('/login')
-        return
+      } finally {
+        setAuthChecking(false)
       }
-      const { data: p } = await supabase.from('profiles').select('primary_currency').eq('id', user.id).single()
-      if (p) setCurrency(p.primary_currency || 'SGD')
-      setAuthChecking(false)
     }
     guard()
   }, [])
