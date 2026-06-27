@@ -45,11 +45,65 @@ function parseCsvRow(line: string) {
   return cols
 }
 
-function parseMoneyCell(value: string) {
+function parseSignedMoneyCell(value?: string) {
+  if (!value?.trim()) return null
   const normalized = value.replace(/[$,]/g, '').replace(/^\((.*)\)$/, '-$1')
   const amount = Number.parseFloat(normalized)
   if (!Number.isFinite(amount) || amount === 0) return null
-  return Math.abs(amount)
+  return amount
+}
+
+function normalizeHeader(value?: string) {
+  return value?.replace(/^\uFEFF/, '').trim().toLowerCase() || ''
+}
+
+function headerMatches(header: string, patterns: RegExp[]) {
+  return patterns.some(pattern => pattern.test(header))
+}
+
+function findHeaderIndex(headers: string[], patterns: RegExp[]) {
+  const index = headers.findIndex(header => headerMatches(header, patterns))
+  return index >= 0 ? index : null
+}
+
+function findHeaderIndices(headers: string[], patterns: RegExp[]) {
+  return headers
+    .map((header, index) => headerMatches(header, patterns) ? index : -1)
+    .filter(index => index >= 0)
+}
+
+function getExpenseAmount(
+  cols: string[],
+  debitIndices: number[],
+  creditIndices: number[],
+  amountIndices: number[],
+  typeIndex: number | null,
+) {
+  for (const index of debitIndices) {
+    const signedAmount = parseSignedMoneyCell(cols[index])
+    if (signedAmount !== null) return Math.abs(signedAmount)
+  }
+
+  const typeValue = typeIndex !== null ? normalizeHeader(cols[typeIndex]) : ''
+  const typeSaysCredit = /\b(cr|credit|deposit|income|refund|money in|inflow)\b/.test(typeValue)
+  const typeSaysDebit = /\b(dr|debit|withdrawal|charge|payment|purchase|spent|money out|outflow)\b/.test(typeValue)
+
+  if (typeSaysCredit) return null
+
+  const hasCreditValue = creditIndices.some(index => parseSignedMoneyCell(cols[index]) !== null)
+  if (hasCreditValue && !typeSaysDebit) return null
+
+  const candidateIndices = amountIndices.length
+    ? amountIndices
+    : cols.map((_, index) => index).filter(index => index >= 2)
+
+  for (const index of candidateIndices) {
+    const signedAmount = parseSignedMoneyCell(cols[index])
+    if (signedAmount === null) continue
+    if (typeSaysDebit || signedAmount < 0) return Math.abs(signedAmount)
+  }
+
+  return null
 }
 
 export default function UploadPage() {
@@ -91,18 +145,23 @@ export default function UploadPage() {
 
   const parseCSV = (text: string): ParsedTx[] => {
     const lines = text.trim().split(/\r?\n/)
+    const headers = parseCsvRow(lines[0] || '').map(normalizeHeader)
+    const dateIndex = findHeaderIndex(headers, [/date/, /posted/, /transaction date/]) ?? 0
+    const descriptionIndex = findHeaderIndex(headers, [/description/, /merchant/, /payee/, /narration/, /details/]) ?? 1
+    const debitIndices = findHeaderIndices(headers, [/debit/, /withdraw/, /money out/, /outflow/, /paid out/, /charge/, /spent/])
+    const creditIndices = findHeaderIndices(headers, [/credit/, /deposit/, /money in/, /inflow/, /income/, /refund/])
+    const genericAmountIndices = findHeaderIndices(headers, [/^amount$/, /transaction amount/, /^value$/])
+      .filter(index => !debitIndices.includes(index) && !creditIndices.includes(index))
+    const typeIndex = findHeaderIndex(headers, [/^type$/, /transaction type/, /direction/])
     const rawRows: Array<{ rawDate: string; description: string; amount: number }> = []
+
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvRow(lines[i])
       if (cols.length < 3) continue
-      const rawDate = cols[0].replace(/^\uFEFF/, '')
-      const description = cols[1]
-      let amount = 0
-      for (let j = 2; j < cols.length; j++) {
-        const parsedAmount = parseMoneyCell(cols[j])
-        if (parsedAmount) { amount = parsedAmount; break }
-      }
-      if (amount > 0 && description) rawRows.push({ rawDate, description, amount })
+      const rawDate = cols[dateIndex]?.replace(/^\uFEFF/, '') || cols[0].replace(/^\uFEFF/, '')
+      const description = cols[descriptionIndex] || cols[1]
+      const amount = getExpenseAmount(cols, debitIndices, creditIndices, genericAmountIndices, typeIndex)
+      if (amount && description) rawRows.push({ rawDate, description, amount })
     }
     const dateOrder = detectNumericDateOrder(rawRows.map(row => row.rawDate))
     const results = rawRows.flatMap(row => {

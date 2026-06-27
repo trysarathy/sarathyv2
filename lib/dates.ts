@@ -104,7 +104,7 @@ export function isDateKeyWithinLastDays(value: string | null | undefined, days: 
 
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const entryStart = new Date(parts.year, parts.month - 1, parts.day)
-  const diffDays = (todayStart.getTime() - entryStart.getTime()) / (1000 * 60 * 60 * 24)
+  const diffDays = Math.round((todayStart.getTime() - entryStart.getTime()) / (1000 * 60 * 60 * 24))
   return diffDays >= 0 && diffDays <= days
 }
 
