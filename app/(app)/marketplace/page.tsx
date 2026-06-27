@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { getFirstName, getProfileCountryLine, getResponsibilityPhrase } from '@/lib/personalization'
+import { getFirstName, getProfileCountryLine, getResponsibilityPhrase, hasPersonalName } from '@/lib/personalization'
 import TabBar from '@/components/ui/TabBar'
 
 type Product = {
@@ -60,9 +60,10 @@ export default function MarketplacePage() {
 
   const filtered = PRODUCTS.filter(p => filter === 'All' || p.category === filter)
   const firstName = getFirstName(profile)
-  const titleName = firstName === 'there' ? 'you' : firstName
+  const titleName = hasPersonalName(profile) ? firstName : 'you'
   const responsibility = getResponsibilityPhrase(profile)
   const countryLine = getProfileCountryLine(profile)
+  const recommendationContext = countryLine.replace(/^Built around\s+/i, '')
   const currency = profile?.primary_currency || 'SGD'
 
   const personalizeProduct = (product: Product) => {
@@ -95,7 +96,7 @@ export default function MarketplacePage() {
     <div className="min-h-dvh bg-cream pb-24">
       <div className="px-5 pt-12 pb-4">
         <h1 className="font-fraunces text-2xl font-semibold text-ink mb-1">Built for {titleName}</h1>
-        <p className="text-ink-3 text-sm">Recommendations filtered around {countryLine.toLowerCase()}.</p>
+        <p className="text-ink-3 text-sm">Recommendations filtered for {recommendationContext.toLowerCase()}.</p>
       </div>
 
       <div className="mx-5 mb-4 bg-saffron-soft rounded-2xl px-4 py-3">

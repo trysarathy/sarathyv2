@@ -64,7 +64,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-danger">
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-danger" role="alert" aria-live="polite">
               {error}
             </div>
           )}
@@ -72,7 +72,10 @@ export default function LoginPage() {
           <div className="mt-auto pt-4">
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? (
-                <span className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  Signing in
+                </span>
               ) : 'Sign in'}
             </button>
 

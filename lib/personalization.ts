@@ -36,6 +36,14 @@ export function getFirstName(profile?: MaybeProfile) {
   return name.split(/\s+/)[0]
 }
 
+export function hasPersonalName(profile?: MaybeProfile) {
+  return Boolean(profile?.name?.trim())
+}
+
+function possessiveTitle(profile: MaybeProfile, label: string) {
+  return hasPersonalName(profile) ? `${getFirstName(profile)}'s ${label}` : `Your ${label}`
+}
+
 export function getCompanionLabel(profile?: MaybeProfile) {
   const vibe = profile?.companion_vibe
   if (vibe === 'hype_friend') return 'Hype friend'
@@ -165,16 +173,17 @@ export function getSarathyQuickChips(profile: MaybeProfile) {
 
 export function getMoneyCheckIntro(profile: MaybeProfile, safeData?: SafeToSpendData | null) {
   const firstName = getFirstName(profile)
+  const personalName = hasPersonalName(profile)
   const responsibility = getResponsibilityPhrase(profile)
   const currency = safeData?.currency || profile?.primary_currency || 'SGD'
   const safeAmount = safeData ? formatCurrency(safeData.safeToSpend, currency) : null
 
   return {
-    title: `${firstName}'s money check`,
+    title: possessiveTitle(profile, 'money check'),
     subtitle: safeAmount
       ? `${safeAmount} safe today. Ask before a purchase changes the plan for ${responsibility}.`
       : `Ask before a purchase changes the plan for ${responsibility}.`,
-    impulseTitle: `Pause for ${firstName}`,
+    impulseTitle: personalName ? `Pause for ${firstName}` : 'Pause before spending',
     impulseBody: `A 30-second check for the purchases that usually hit when ${getMoneyFearPhrase(profile)} is loud.`,
   }
 }
@@ -183,31 +192,29 @@ export function getFutureIntro(profile: MaybeProfile, topCategory?: string | nul
   const firstName = getFirstName(profile)
   const focus = topCategory || "today's choices"
   return {
-    title: `${firstName}'s future you`,
+    title: possessiveTitle(profile, 'future you'),
     subtitle: `Three 6-month versions based on ${focus}, your budget, and the goals Sarathy knows about.`,
   }
 }
 
 export function getInsightsIntro(profile: MaybeProfile) {
-  const firstName = getFirstName(profile)
   return {
-    title: `${firstName}'s financial DNA`,
+    title: possessiveTitle(profile, 'financial DNA'),
     subtitle: `Patterns from your transactions, moods, and the money stress you named during setup.`,
   }
 }
 
 export function getProfileSummary(profile: MaybeProfile) {
   return {
-    title: `${getFirstName(profile)}'s profile`,
+    title: possessiveTitle(profile, 'profile'),
     subtitle: `${getProfileCountryLine(profile)}. Sarathy uses this to tune every check, story, and insight.`,
     note: `${getCompanionLabel(profile)} mode is active for ${getResponsibilityPhrase(profile)}.`,
   }
 }
 
 export function getStoryIntro(profile: MaybeProfile) {
-  const firstName = getFirstName(profile)
   return {
-    title: `${firstName}'s story`,
+    title: possessiveTitle(profile, 'story'),
     subtitle: `${getProfileCountryLine(profile)}. Your goals, streaks, and XP stay tied to your real life context.`,
   }
 }
@@ -240,10 +247,24 @@ export function getSarathyInbox(
   const todayEntries = entries.filter(entry => entry.entry_date === today)
   const topCategory = categories[0]
   const todaySpent = todayEntries.reduce((sum, entry) => sum + entry.amount, 0)
-  const dayOfMonth = new Date().getDate()
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const reminderWindowEnd = new Date(todayStart)
+  reminderWindowEnd.setDate(todayStart.getDate() + 5)
   const dueSoon = fixedSpending.find(item => {
+    if (item.is_active === false) return false
     if (!item.due_day) return false
-    return item.due_day >= dayOfMonth && item.due_day <= dayOfMonth + 5
+    const thisMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const thisMonthDueDay = Math.min(item.due_day, thisMonthLastDay)
+    let dueDate = new Date(now.getFullYear(), now.getMonth(), thisMonthDueDay)
+
+    if (dueDate < todayStart) {
+      const nextMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 2, 0).getDate()
+      const nextMonthDueDay = Math.min(item.due_day, nextMonthLastDay)
+      dueDate = new Date(now.getFullYear(), now.getMonth() + 1, nextMonthDueDay)
+    }
+
+    return dueDate >= todayStart && dueDate <= reminderWindowEnd
   })
 
   const items: SarathyInboxItem[] = []
@@ -284,7 +305,7 @@ export function getSarathyInbox(
     items.push({
       id: 'empty-today',
       title: 'No money moment logged today',
-      body: `One quick log is enough. It keeps ${firstName === DEFAULT_NAME ? 'your' : `${firstName}'s`} daily number honest without turning this into admin.`,
+      body: `One quick log is enough. It keeps ${hasPersonalName(profile) ? `${firstName}'s` : 'your'} daily number honest without turning this into admin.`,
       actionLabel: 'Log one thing',
       action: 'log-expense',
       icon: 'message',
@@ -363,6 +384,6 @@ export function getSarathyInbox(
   return {
     title: 'Sarathy inbox',
     subtitle: 'No push alerts. Just useful notes waiting when you open the app.',
-    items: items.slice(0, 4),
+    items,
   }
 }

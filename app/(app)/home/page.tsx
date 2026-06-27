@@ -261,7 +261,7 @@ export default function HomePage() {
     ? todaySpent > 0 ? 100 : 0
     : Math.min(100, Math.round((todaySpent / safeData.safeToSpend) * 100))
   const monthBalance = (profile.planning_amount || 0) - monthTotal
-  const monthlyRows = categories.slice(0, 4)
+  const monthlyRows = categories
   const personalNote = getHomePersonalization(profile, safeData, categories[0])
   const actionHelpers = getPersonalActionHelpers(profile, safeData, categories[0])
   const inbox = getSarathyInbox(profile, safeData, entries, fixedSpending, categories)
@@ -502,7 +502,7 @@ export default function HomePage() {
                   <div key={entry.id} className="flex items-center justify-between gap-3 border-b border-cream py-3 last:border-0">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-ink">{entry.description || entry.category}</p>
-                      <p className="text-xs text-ink-3">{new Date(entry.entry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}</p>
+                      <p className="text-xs text-ink-3">{new Date(`${entry.entry_date}T00:00:00Z`).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</p>
                     </div>
                     <span className="text-sm font-semibold text-ink">{formatCurrency(entry.amount, currency)}</span>
                   </div>

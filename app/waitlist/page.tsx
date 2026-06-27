@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 export default function WaitlistPage() {
   const supabase = createClient()
+  const savingRef = useRef(false)
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -30,6 +31,8 @@ export default function WaitlistPage() {
   }
 
   const handleSubmit = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
     setSaving(true)
     setSubmitError('')
     try {
@@ -53,6 +56,7 @@ export default function WaitlistPage() {
       console.error(err)
       setSubmitError('Something went wrong joining the list. Please try again in a moment.')
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }

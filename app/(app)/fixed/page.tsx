@@ -21,7 +21,7 @@ import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { FixedSpending, Profile } from '@/types'
 import { formatCurrency } from '@/lib/calculations'
-import { getFirstName } from '@/lib/personalization'
+import { getFirstName, hasPersonalName } from '@/lib/personalization'
 import TabBar from '@/components/ui/TabBar'
 
 const FIXED_COST_ICONS: Array<{ value: string; label: string; icon: LucideIcon }> = [
@@ -126,7 +126,7 @@ export default function FixedCostsPage() {
     .filter(i => i.is_active)
     .reduce((sum, i) => sum + i.amount, 0)
   const firstName = getFirstName(profile)
-  const fixedTitle = firstName === 'there' ? 'Your fixed costs' : `${firstName}'s fixed costs`
+  const fixedTitle = hasPersonalName(profile) ? `${firstName}'s fixed costs` : 'Your fixed costs'
 
   if (loading) return (
     <div className="min-h-dvh bg-cream flex items-center justify-center">

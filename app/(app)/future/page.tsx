@@ -15,6 +15,8 @@ type ScenarioOption = {
   data: any
 }
 
+const SGD_TO_INR_REFERENCE_RATE = 61.5
+
 export default function FuturePage() {
   const router = useRouter()
   const supabase = createClient()
@@ -247,7 +249,7 @@ export default function FuturePage() {
             </p>
             {profile?.home_country === 'India' || profile?.secondary_currency === 'INR' ? (
               <p className="text-xs text-ink-3">
-                That's INR {Math.round(proj.topCat.total * 62).toLocaleString('en-IN')}, about {Math.round(proj.topCat.total * 62 / 3500)} weeks of groceries back home
+                That's INR {Math.round(proj.topCat.total * SGD_TO_INR_REFERENCE_RATE).toLocaleString('en-IN')}, about {Math.round(proj.topCat.total * SGD_TO_INR_REFERENCE_RATE / 3500)} weeks of groceries back home
               </p>
             ) : (
               <p className="text-xs text-ink-3">

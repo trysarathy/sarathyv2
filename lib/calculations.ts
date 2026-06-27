@@ -1,5 +1,16 @@
 import { BudgetEntry, FixedSpending, Profile, SafeToSpendData, SafetyStatus, PLCategory } from '@/types'
 
+function ordinal(day: number) {
+  const suffix = day % 10 === 1 && day % 100 !== 11
+    ? 'st'
+    : day % 10 === 2 && day % 100 !== 12
+    ? 'nd'
+    : day % 10 === 3 && day % 100 !== 13
+    ? 'rd'
+    : 'th'
+  return `${day}${suffix}`
+}
+
 export function calculateSafeToSpend(
   profile: Profile,
   entries: BudgetEntry[],
@@ -41,10 +52,11 @@ export function calculateSafeToSpend(
 
   // Safety line in plain language
   let safetyLine = ''
+  const monthEnd = ordinal(daysInMonth)
   if (status === 'safe') {
-    safetyLine = `You're safe through the ${daysInMonth}th`
+    safetyLine = `You're safe through the ${monthEnd}`
   } else if (status === 'tight') {
-    safetyLine = `A bit tight - watch spending through the ${daysInMonth}th`
+    safetyLine = `A bit tight - watch spending through the ${monthEnd}`
   } else {
     safetyLine = `At risk this week - let's fix it`
   }

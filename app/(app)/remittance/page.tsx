@@ -46,7 +46,10 @@ const COUNTRY_CURRENCY: Record<string, string> = {
 }
 
 function getHomeCurrency(homeCountry?: string | null) {
-  return homeCountry ? COUNTRY_CURRENCY[homeCountry] || 'INR' : 'INR'
+  const normalized = homeCountry?.trim().toLowerCase()
+  if (!normalized) return 'INR'
+  const match = Object.entries(COUNTRY_CURRENCY).find(([country]) => country.toLowerCase() === normalized)
+  return match?.[1] || null
 }
 
 function formatDestinationAmount(amount: number, currency: string) {
@@ -58,6 +61,19 @@ function formatDestinationAmount(amount: number, currency: string) {
     }).format(amount)
   } catch {
     return `${currency} ${Math.round(amount).toLocaleString('en-SG')}`
+  }
+}
+
+function formatExchangeRate(rate: number, currency: string) {
+  try {
+    return new Intl.NumberFormat('en-SG', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 4,
+      minimumFractionDigits: rate < 1 ? 4 : 2,
+    }).format(rate)
+  } catch {
+    return `${currency} ${rate.toFixed(rate < 1 ? 4 : 2)}`
   }
 }
 
@@ -73,6 +89,7 @@ export default function RemittancePage() {
   const [history, setHistory] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [rateError, setRateError] = useState('')
   const [selectedProvider, setSelectedProvider] = useState('Wise')
 
   const fromCurrency = profile?.primary_currency || 'SGD'
@@ -99,9 +116,16 @@ export default function RemittancePage() {
 
   const fetchRate = async (contextProfile = profile) => {
     setRateLoading(true)
+    setRateError('')
     const sourceCurrency = contextProfile?.primary_currency || 'SGD'
     const destinationCurrency = getHomeCurrency(contextProfile?.home_country)
-    const fallbackRate = destinationCurrency === 'INR' ? 61.5 : 1
+    if (!destinationCurrency) {
+      setRate(null)
+      setRateError('Set a supported home country before calculating this transfer.')
+      setRateLoading(false)
+      return
+    }
+
     try {
       const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${sourceCurrency}`)
       if (!res.ok) throw new Error('Failed to fetch exchange rate')
@@ -111,8 +135,15 @@ export default function RemittancePage() {
       setRate(liveRate)
       getSarathyTip(liveRate, contextProfile)
     } catch {
-      setRate(fallbackRate)
-      getSarathyTip(fallbackRate, contextProfile)
+      if (destinationCurrency === 'INR') {
+        const fallbackRate = 61.5
+        setRate(fallbackRate)
+        setRateError('Using a fallback INR rate because the live rate is unavailable.')
+        getSarathyTip(fallbackRate, contextProfile)
+      } else {
+        setRate(null)
+        setRateError(`Live ${sourceCurrency} to ${destinationCurrency} rates are unavailable right now.`)
+      }
     } finally { setRateLoading(false) }
   }
 
@@ -172,7 +203,7 @@ export default function RemittancePage() {
   const inrAmount = amount && rate ? parseFloat(amount) * rate : 0
   const provider = PROVIDERS.find(p => p.name === selectedProvider)
   const fee = amount ? (parseFloat(amount) * (provider?.fee || 0.6)) / 100 : 0
-  const youGet = inrAmount - (fee * (rate || (toCurrency === 'INR' ? 61.5 : 1)))
+  const youGet = rate ? inrAmount - (fee * rate) : 0
   const intro = getRemittanceIntro(profile)
 
   if (loading) return (
@@ -190,7 +221,7 @@ export default function RemittancePage() {
           </button>
           <div>
             <h1 className="font-fraunces text-2xl font-semibold text-ink">{intro.title}</h1>
-            <p className="text-ink-3 text-sm">{fromCurrency} to {toCurrency}. {intro.subtitle}</p>
+        <p className="text-ink-3 text-sm">{fromCurrency} to {toCurrency || 'home currency'}. {intro.subtitle}</p>
           </div>
         </div>
       </div>
@@ -205,7 +236,7 @@ export default function RemittancePage() {
           ) : (
             <>
               <p className="font-fraunces text-3xl font-semibold mb-1">
-                1 {fromCurrency} = {rate ? formatDestinationAmount(rate, toCurrency) : `${toCurrency} 0`}
+                1 {fromCurrency} = {rate && toCurrency ? formatExchangeRate(rate, toCurrency) : 'Rate unavailable'}
               </p>
               <button onClick={() => fetchRate()} className="flex items-center gap-1 text-xs opacity-75 underline">
                 <RefreshCw className="h-3 w-3" />
@@ -242,12 +273,18 @@ export default function RemittancePage() {
             </div>
             <ArrowRight className="mt-4 h-5 w-5 flex-shrink-0 text-ink-3" />
             <div className="flex-1">
-              <p className="text-xs text-ink-3 mb-1">They receive ({toCurrency})</p>
+              <p className="text-xs text-ink-3 mb-1">They receive ({toCurrency || 'home currency'})</p>
               <div className="input-field text-xl font-fraunces bg-cream text-safe">
-                {inrAmount > 0 ? formatDestinationAmount(youGet, toCurrency) : formatDestinationAmount(0, toCurrency)}
+                {toCurrency ? (inrAmount > 0 ? formatDestinationAmount(youGet, toCurrency) : formatDestinationAmount(0, toCurrency)) : '-'}
               </div>
             </div>
           </div>
+
+          {rateError && (
+            <div className="mb-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-danger" role="alert">
+              {rateError}
+            </div>
+          )}
 
           {/* Provider comparison */}
           <p className="text-xs font-medium text-ink-3 mb-2">Choose provider</p>
@@ -291,7 +328,7 @@ export default function RemittancePage() {
           <button
             onClick={handleSave}
             className="btn-primary"
-            disabled={saving || !amount || !rate}
+            disabled={saving || !amount || !rate || !toCurrency}
           >
             {saving
               ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -306,18 +343,22 @@ export default function RemittancePage() {
               Transfer history
             </p>
             <div className="flex flex-col gap-2">
-              {history.map(h => (
-                <div key={h.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-ink">
-                      {formatCurrency(h.amount_sent, h.from_currency || fromCurrency)} to {formatDestinationAmount(h.amount_sent * h.rate_used, h.to_currency || toCurrency)}
-                    </p>
-                    <p className="text-xs text-ink-3">
-                      {h.provider} / Rate: {h.rate_used?.toFixed(2)} / {new Date(h.created_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
-                    </p>
+              {history.map(h => {
+                const sentCurrency = h.from_currency || 'SGD'
+                const receivedCurrency = h.to_currency || 'INR'
+                return (
+                  <div key={h.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-ink">
+                        {formatCurrency(h.amount_sent, sentCurrency)} to {formatDestinationAmount(h.amount_sent * h.rate_used, receivedCurrency)}
+                      </p>
+                      <p className="text-xs text-ink-3">
+                        {h.provider} / Rate: {h.rate_used?.toFixed(2)} / {new Date(h.created_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

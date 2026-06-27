@@ -15,6 +15,13 @@ import TabBar from '@/components/ui/TabBar'
 
 const FALLBACK_CHIPS = ['Can I afford this today?', 'Show my real picture', 'Plan with me', 'Am I okay?']
 
+function getCurrentMonthRange() {
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('sv-SE')
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('sv-SE')
+  return { monthStart, nextMonthStart }
+}
+
 export default function SarathyPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -37,11 +44,12 @@ export default function SarathyPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/login'); return }
+      const { monthStart, nextMonthStart } = getCurrentMonthRange()
 
       const [profileRes, messagesRes, entriesRes, fixedRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase.from('chat_messages').select('*').eq('user_id', user.id).order('created_at', { ascending: true }).limit(50),
-        supabase.from('budget_entries').select('*').eq('user_id', user.id),
+        supabase.from('budget_entries').select('*').eq('user_id', user.id).gte('entry_date', monthStart).lt('entry_date', nextMonthStart),
         supabase.from('fixed_spending').select('*').eq('user_id', user.id).eq('is_active', true),
       ])
 
@@ -88,7 +96,7 @@ export default function SarathyPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string, anxiousOverride = isAnxious) => {
     if (!text.trim() || sending || !profile) return
     setSending(true)
 
@@ -106,9 +114,10 @@ export default function SarathyPage() {
       // Get fresh data for context
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      const { monthStart, nextMonthStart } = getCurrentMonthRange()
 
       const [entriesRes, fixedRes] = await Promise.all([
-        supabase.from('budget_entries').select('*').eq('user_id', user.id),
+        supabase.from('budget_entries').select('*').eq('user_id', user.id).gte('entry_date', monthStart).lt('entry_date', nextMonthStart),
         supabase.from('fixed_spending').select('*').eq('user_id', user.id).eq('is_active', true),
       ])
 
@@ -124,7 +133,7 @@ export default function SarathyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          isAnxious,
+          isAnxious: anxiousOverride,
           context: {
             name: profile.name,
             companion_vibe: profile.companion_vibe,
@@ -176,7 +185,7 @@ export default function SarathyPage() {
 
   const handleAnxious = () => {
     setIsAnxious(true)
-    sendMessage("I'm feeling anxious about my money right now")
+    sendMessage("I'm feeling anxious about my money right now", true)
   }
 
   if (loading) {

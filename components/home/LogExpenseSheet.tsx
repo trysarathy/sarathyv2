@@ -60,13 +60,16 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
   const [saving, setSaving] = useState(false)
   const [currency, setCurrency] = useState(profileCurrency)
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false)
+  const [error, setError] = useState('')
 
   const selectedCurrency = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0]
   const profileCurrencyData = CURRENCIES.find(c => c.code === profileCurrency) || CURRENCIES[0]
 
   const handleSave = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!amount || parseFloat(amount) <= 0) return
+    const rect = e.currentTarget.getBoundingClientRect()
     setSaving(true)
+    setError('')
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -79,13 +82,14 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
       if (currency !== profileCurrency) {
         try {
           const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`)
+          if (!res.ok) throw new Error('Failed to fetch exchange rate')
           const data = await res.json()
           const rate = data.rates?.[profileCurrency]
-          if (rate) {
-            finalAmount = parseFloat((parseFloat(amount) * rate).toFixed(2))
-          }
+          if (!rate) throw new Error('Missing exchange rate')
+          finalAmount = parseFloat((parseFloat(amount) * rate).toFixed(2))
         } catch {
-          // Keep the typed amount when the live conversion service is unavailable.
+          setError(`Could not convert ${currency} to ${profileCurrency}. Try again or switch to ${profileCurrency}.`)
+          return
         }
       }
 
@@ -111,11 +115,11 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
       const { data: p } = await supabase.from('profiles').select('total_xp').eq('id', user.id).single()
       await supabase.from('profiles').update({ total_xp: (p?.total_xp || 0) + 10 }).eq('id', user.id)
 
-      const rect = e.currentTarget.getBoundingClientRect()
       onLogged(10, rect.left + rect.width / 2, rect.top)
       onClose()
     } catch (err) {
       console.error(err)
+      setError('Could not save this expense. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -187,6 +191,12 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
               <p className="text-xs text-ink-3">
                 Converts to {profileCurrencyData.code} at a live rate before it is added to your budget.
               </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-danger" role="alert">
+              {error}
             </div>
           )}
         </div>
