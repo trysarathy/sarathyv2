@@ -68,12 +68,23 @@ export default function MyDataPage() {
 
   // Anonymised benchmarks based on typical Singapore student data
   const getBenchmarks = () => {
-    const currency = profile?.primary_currency || 'SGD'
+    const currency = (profile?.primary_currency || 'SGD').trim().toUpperCase()
     const monthEntries = getMonthEntries(entries)
     const myMonthSpend = monthEntries.reduce((s, e) => s + e.amount, 0)
     const cats = groupEntriesByCategory(monthEntries)
     const myFood = cats.find(c => c.category === 'Food')?.total || 0
     const myTransport = cats.find(c => c.category === 'Transport')?.total || 0
+    const streakBenchmark = {
+      label: 'Streak (days)',
+      mine: profile?.daily_login_streak || 0,
+      avg: 4,
+      unit: 'days',
+      insight: (profile?.daily_login_streak || 0) >= 4
+        ? 'Your check-in habit is stronger than average. That consistency pays off.'
+        : 'Building the daily check-in habit takes 2-3 weeks. Keep going.',
+    }
+
+    if (currency !== 'SGD') return [streakBenchmark]
 
     return [
       {
@@ -108,13 +119,7 @@ export default function MyDataPage() {
           : 'Above average monthly spend. Worth reviewing your fixed costs.',
       },
       {
-        label: 'Streak (days)',
-        mine: profile?.daily_login_streak || 0,
-        avg: 4,
-        unit: 'days',
-        insight: (profile?.daily_login_streak || 0) >= 4
-          ? 'Your check-in habit is stronger than average. That consistency pays off.'
-          : 'Building the daily check-in habit takes 2-3 weeks. Keep going.',
+        ...streakBenchmark,
       },
     ]
   }
@@ -127,7 +132,8 @@ export default function MyDataPage() {
 
   const behaviour = getBehaviouralProfile()
   const benchmarks = getBenchmarks()
-  const currency = profile?.primary_currency || 'SGD'
+  const currency = (profile?.primary_currency || 'SGD').trim().toUpperCase()
+  const supportsSingaporeSpendBenchmarks = currency === 'SGD'
   const firstName = getFirstName(profile)
   const summary = getProfileSummary(profile)
 
@@ -277,6 +283,7 @@ export default function MyDataPage() {
             <div className="card mb-1">
               <p className="text-xs text-ink-3 leading-relaxed">
                 Benchmarks are based on anonymised, aggregated data from Singapore student spending patterns. No individual data is ever shared or compared.
+                {!supportsSingaporeSpendBenchmarks && ` Spending comparisons are hidden for ${currency} profiles until currency-adjusted benchmark data is available.`}
               </p>
             </div>
 

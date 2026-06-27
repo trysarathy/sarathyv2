@@ -143,7 +143,7 @@ export default function FuturePage() {
   )
 
   const proj = getProjection()
-  const currency = profile?.primary_currency || 'SGD'
+  const currency = (profile?.primary_currency || 'SGD').trim().toUpperCase()
   const fallbackIntro = getFutureIntro(profile)
 
   if (!proj) return (
@@ -244,7 +244,7 @@ export default function FuturePage() {
             <p className="font-fraunces text-2xl font-semibold text-ink mb-2">
               {formatCurrency(topCategoryTotal, currency)}
             </p>
-            {profile?.home_country === 'India' || profile?.secondary_currency === 'INR' ? (
+            {(profile?.home_country === 'India' || profile?.secondary_currency === 'INR') && currency === 'SGD' ? (
               <p className="text-xs text-ink-3">
                 That's INR {Math.round(topCategoryTotal * SGD_TO_INR_REFERENCE_RATE).toLocaleString('en-IN')}, about {Math.round(topCategoryTotal * SGD_TO_INR_REFERENCE_RATE / 3500)} weeks of groceries back home
               </p>
