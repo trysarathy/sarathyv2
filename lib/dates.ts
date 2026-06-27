@@ -70,7 +70,10 @@ export function normalizeDateKey(value?: string | null, dateOrder: DateOrder = '
         ? 'month-first'
         : dateOrder
 
-    if (inferredOrder === 'unknown') return null
+    if (inferredOrder === 'unknown') {
+      // Legacy imports stored raw slash dates; preserve the old JS month-first parse behavior.
+      return toDateKey(year, first, second)
+    }
 
     const day = inferredOrder === 'day-first' ? first : second
     const month = inferredOrder === 'day-first' ? second : first

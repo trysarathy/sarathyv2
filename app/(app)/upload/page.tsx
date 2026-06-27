@@ -48,12 +48,18 @@ function parseCsvRow(line: string) {
 }
 
 function parseSignedMoneyCell(value?: string) {
-  if (!value?.trim()) return null
-  const normalized = value
+  const rawValue = value?.trim()
+  if (!rawValue) return null
+  const signNormalized = rawValue.replace(/\u2212/g, '-')
+  const hasDebitMarker = /\b(dr|debit)\b/i.test(signNormalized)
+  const isNegative = /^\(.*\)$/.test(signNormalized) || /-\s*$/.test(signNormalized) || hasDebitMarker
+  const normalized = signNormalized
     .replace(/\u2212/g, '-')
+    .replace(/^\((.*)\)$/, '$1')
+    .replace(/-\s*$/, '')
     .replace(/[^\d.()+-]/g, '')
-    .replace(/^\((.*)\)$/, '-$1')
-  const amount = Number.parseFloat(normalized)
+  const parsedAmount = Number.parseFloat(normalized)
+  const amount = isNegative ? -Math.abs(parsedAmount) : parsedAmount
   if (!Number.isFinite(amount) || amount === 0) return null
   return amount
 }
@@ -75,6 +81,14 @@ function findHeaderIndices(headers: string[], patterns: RegExp[]) {
   return headers
     .map((header, index) => headerMatches(header, patterns) ? index : -1)
     .filter(index => index >= 0)
+}
+
+function isDirectionHeader(header: string) {
+  return /^(type|transaction type|direction|debit\s*\/\s*credit|credit\s*\/\s*debit|debit or credit|credit or debit|dr\s*\/\s*cr|cr\s*\/\s*dr)$/.test(header)
+}
+
+function isDateHeader(header: string) {
+  return /\b(date|posted)\b/.test(header)
 }
 
 function getStatementDateFallbackOrder(currency: string): DateOrder {
@@ -178,11 +192,13 @@ export default function UploadPage() {
     const headers = parseCsvRow(lines[0] || '').map(normalizeHeader)
     const dateIndex = findHeaderIndex(headers, [/date/, /posted/, /transaction date/]) ?? 0
     const descriptionIndex = findHeaderIndex(headers, [/description/, /merchant/, /payee/, /narration/, /details/]) ?? 1
+    const typeIndex = findHeaderIndex(headers, [/^type$/, /transaction type/, /^direction$/, /^debit\s*\/\s*credit$/, /^credit\s*\/\s*debit$/, /^debit or credit$/, /^credit or debit$/, /^dr\s*\/\s*cr$/, /^cr\s*\/\s*dr$/])
     const debitIndices = findHeaderIndices(headers, [/debit/, /withdraw/, /money out/, /outflow/, /paid out/, /charge/, /spent/])
+      .filter(index => !isDirectionHeader(headers[index]) && !isDateHeader(headers[index]))
     const creditIndices = findHeaderIndices(headers, [/credit/, /deposit/, /money in/, /inflow/, /income/, /refund/])
-    const genericAmountIndices = findHeaderIndices(headers, [/^amount$/, /transaction amount/, /transaction value/, /^value$/])
+      .filter(index => !isDirectionHeader(headers[index]) && !isDateHeader(headers[index]))
+    const genericAmountIndices = findHeaderIndices(headers, [/^amount(?:\s*(?:\([^)]+\)|in\s+[a-z]{3}|[a-z]{3}))?$/, /^transaction amount(?:\s*(?:\([^)]+\)|in\s+[a-z]{3}|[a-z]{3}))?$/, /^transaction value(?:\s*(?:\([^)]+\)|in\s+[a-z]{3}|[a-z]{3}))?$/, /^value(?:\s*(?:\([^)]+\)|in\s+[a-z]{3}|[a-z]{3}))?$/])
       .filter(index => !debitIndices.includes(index) && !creditIndices.includes(index))
-    const typeIndex = findHeaderIndex(headers, [/^type$/, /transaction type/, /direction/])
     const hasExplicitMoneyDirection = typeIndex !== null || debitIndices.length > 0 || creditIndices.length > 0
     const allowPositiveAmountFallback = !hasExplicitMoneyDirection &&
       !statementHasMixedSignedAmounts(lines.slice(1), genericAmountIndices)
