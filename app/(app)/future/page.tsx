@@ -159,6 +159,7 @@ export default function FuturePage() {
   )
 
   const intro = getFutureIntro(profile, proj.topCat?.category)
+  const topCategoryTotal = proj.topCat?.total ?? 0
 
   const scenarios: ScenarioOption[] = [
     { key: 'current', label: 'If nothing changes', icon: BarChart3, data: proj.current },
@@ -241,15 +242,15 @@ export default function FuturePage() {
               Your {proj.topCat.category} spending this month
             </p>
             <p className="font-fraunces text-2xl font-semibold text-ink mb-2">
-              {formatCurrency(proj.topCat.total, currency)}
+              {formatCurrency(topCategoryTotal, currency)}
             </p>
             {profile?.home_country === 'India' || profile?.secondary_currency === 'INR' ? (
               <p className="text-xs text-ink-3">
-                That's INR {Math.round(proj.topCat.total * SGD_TO_INR_REFERENCE_RATE).toLocaleString('en-IN')}, about {Math.round(proj.topCat.total * SGD_TO_INR_REFERENCE_RATE / 3500)} weeks of groceries back home
+                That's INR {Math.round(topCategoryTotal * SGD_TO_INR_REFERENCE_RATE).toLocaleString('en-IN')}, about {Math.round(topCategoryTotal * SGD_TO_INR_REFERENCE_RATE / 3500)} weeks of groceries back home
               </p>
             ) : (
               <p className="text-xs text-ink-3">
-                That's {Math.round(proj.topCat.total / 12)} days of daily spending, or {Math.round((proj.topCat.total / (profile?.planning_amount || 1)) * 100)}% of your monthly budget
+                That's {Math.round(topCategoryTotal / 12)} days of daily spending, or {Math.round((topCategoryTotal / (profile?.planning_amount || 1)) * 100)}% of your monthly budget
               </p>
             )}
           </div>
