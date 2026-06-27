@@ -161,11 +161,16 @@ export default function SarathyPage() {
       setMessages(prev => [...prev, assistantMsg])
       setIsAnxious(false)
 
-      // Save both messages to Supabase
-      await supabase.from('chat_messages').insert([
-        { user_id: user.id, role: 'user', content: text },
-        { user_id: user.id, role: 'assistant', content: assistantMsg.content },
-      ])
+      // Persistence failure should not turn a successful answer into a connection error.
+      try {
+        const { error } = await supabase.from('chat_messages').insert([
+          { user_id: user.id, role: 'user', content: text },
+          { user_id: user.id, role: 'assistant', content: assistantMsg.content },
+        ])
+        if (error) throw error
+      } catch (saveError) {
+        console.error('Failed to save chat messages:', saveError)
+      }
 
     } catch (err) {
       const fallbackMsg: ChatMessage = {

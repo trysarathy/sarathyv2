@@ -20,16 +20,30 @@ export default function MoodCheckIn({ userId, onLogged }: Props) {
   const supabase = createClient()
   const [selected, setSelected] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const handleMood = async (mood: string) => {
+    if (saving) return
     setSelected(mood)
-    await supabase.from('mood_logs').upsert({
-      user_id: userId,
-      mood,
-      entry_date: getLocalDateKey(),
-    }, { onConflict: 'user_id,entry_date' })
-    setSaved(true)
-    setTimeout(() => onLogged?.(), 800)
+    setSaveError('')
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('mood_logs').upsert({
+        user_id: userId,
+        mood,
+        entry_date: getLocalDateKey(),
+      }, { onConflict: 'user_id,entry_date' })
+      if (error) throw error
+      setSaved(true)
+      setTimeout(() => onLogged?.(), 800)
+    } catch (err) {
+      console.error('Failed to save mood:', err)
+      setSelected(null)
+      setSaveError("Couldn't save that mood. Try again.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (saved) {
@@ -59,6 +73,11 @@ export default function MoodCheckIn({ userId, onLogged }: Props) {
           <p className="text-xs text-ink-3">This tunes Sarathy's advice.</p>
         </div>
       </div>
+      {saveError && (
+        <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-danger" role="alert">
+          {saveError}
+        </p>
+      )}
       <div className="grid grid-cols-3 gap-2">
         {MOODS.map(mood => {
           const Icon = mood.icon
@@ -68,6 +87,8 @@ export default function MoodCheckIn({ userId, onLogged }: Props) {
               key={mood.value}
               type="button"
               onClick={() => handleMood(mood.value)}
+              disabled={saving}
+              aria-busy={saving && selected === mood.value}
               className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border border-line bg-white py-3 transition-colors active:bg-saffron-soft"
             >
               <Icon className={`h-6 w-6 ${mood.tone}`} />
