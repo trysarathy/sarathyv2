@@ -115,16 +115,6 @@ export default function ProfilePage() {
           </div>
           <span className="text-ink-3">→</span>
         </a>
-        <a href="/pricing" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">💎</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Upgrade to Pro</p>
-              <p className="text-ink-3 text-xs">Unlimited everything · S$5.99/month</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </a>
       </div>
 
       <button

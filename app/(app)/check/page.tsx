@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { calculateSafeToSpend, formatCurrency } from '@/lib/calculations'
+import { getAuthHeaders } from '@/lib/api-auth'
 import TabBar from '@/components/ui/TabBar'
 
 const QUICK_CHECKS = [
@@ -67,7 +68,7 @@ export default function CheckPage() {
     try {
       const response = await fetch('/api/sarathy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: `Can I afford ${i || 'this'} for ${formatCurrency(a, safeData.currency)}?`,
           isAnxious: false,
@@ -103,7 +104,7 @@ export default function CheckPage() {
     try {
       const response = await fetch('/api/sarathy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: `I want to buy ${impulseItem} for ${formatCurrency(parseFloat(impulseAmount), safeData.currency)}. Is this a good idea right now? Give me an honest 30-second reality check.`,
           isAnxious: false,
@@ -148,7 +149,7 @@ export default function CheckPage() {
     try {
       const response = await fetch('/api/sarathy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: `What if ${whatifAction}? How would that affect my finances this month?`,
           isAnxious: false,

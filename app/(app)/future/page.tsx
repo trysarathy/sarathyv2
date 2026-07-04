@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, groupEntriesByCategory } from '@/lib/calculations'
+import { getAuthHeaders } from '@/lib/api-auth'
 import TabBar from '@/components/ui/TabBar'
 
 export default function FuturePage() {
@@ -102,7 +103,7 @@ export default function FuturePage() {
     try {
       const res = await fetch('/api/sarathy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: `Show me what my financial life looks like in 6 months in the "${chosen.label}" scenario. I would save ${formatCurrency(chosen.saved, profile?.primary_currency || 'SGD')} total. Make it feel real and personal, not abstract. Reference my actual goals if relevant.`,
           isAnxious: false,

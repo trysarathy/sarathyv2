@@ -3,6 +3,8 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/calculations'
+import { parseBankStatement, formatBankLabel, type BankFormat } from '@/lib/csv-parser'
+import { getAuthHeaders } from '@/lib/api-auth'
 import TabBar from '@/components/ui/TabBar'
 
 const CATEGORIES = ['Food','Transport','Social','Home','Family','Shopping','Health','Education','Entertainment','Other']
@@ -26,40 +28,30 @@ export default function UploadPage() {
   const [receiptResult, setReceiptResult] = useState<{amount:number|null;merchant:string;category:string}|null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string|null>(null)
   const [receiptDone, setReceiptDone] = useState(false)
-
-  const parseCSV = (text: string) => {
-    const lines = text.trim().split('\n')
-    const results = []
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g,'').trim())
-      if (cols.length < 3) continue
-      const date = cols[0]
-      const description = cols[1]
-      let amount = 0
-      for (let j = 2; j < cols.length; j++) {
-        const n = parseFloat(cols[j].replace(/[$,]/g,''))
-        if (!isNaN(n) && n > 0) { amount = n; break }
-      }
-      if (amount > 0 && description) results.push({ date, description, amount })
-    }
-    return results.slice(0, 50)
-  }
+  const [detectedFormat, setDetectedFormat] = useState<BankFormat | null>(null)
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setParsing(true); setError(''); setTxs([])
+    setParsing(true); setError(''); setTxs([]); setDetectedFormat(null)
     try {
       const text = await file.text()
-      const parsed = parseCSV(text)
+      const { transactions: parsed, format } = parseBankStatement(text)
+      setDetectedFormat(format)
       if (!parsed.length) { setError('Could not read transactions. Make sure it is a CSV file from your bank.'); setParsing(false); return }
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: p } = await supabase.from('profiles').select('primary_currency').eq('id', user.id).single()
         if (p) setCurrency(p.primary_currency || 'SGD')
       }
-      const res = await fetch('/api/parse-statement', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ transactions: parsed }) })
-      const { categorized } = await res.json()
+      const res = await fetch('/api/parse-statement', { method:'POST', headers: await getAuthHeaders(), body: JSON.stringify({ transactions: parsed }) })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to categorize transactions. Please try again.')
+        setParsing(false)
+        return
+      }
+      const { categorized } = data
       setTxs(parsed.map((t,i) => {
         const c = categorized?.find((x:any) => x.index === i)
         return { ...t, category: c?.category || 'Other', description: c?.description || t.description, selected: true }
@@ -94,7 +86,7 @@ export default function UploadPage() {
       setReceiptPreview(dataUrl)
       const base64 = dataUrl.split(',')[1]
       try {
-        const res = await fetch('/api/scan-receipt', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ imageBase64: base64 }) })
+        const res = await fetch('/api/scan-receipt', { method:'POST', headers: await getAuthHeaders(), body: JSON.stringify({ imageBase64: base64 }) })
         setReceiptResult(await res.json())
       } catch { setReceiptResult({ amount: null, merchant: 'Could not read', category: 'Other' }) }
       finally { setReceiptScanning(false) }
@@ -155,6 +147,11 @@ export default function UploadPage() {
             {saved && <div className="card text-center py-10"><p className="text-4xl mb-3">✅</p><p className="font-fraunces text-xl font-semibold text-ink mb-1">{sel.length} transactions saved</p><button onClick={() => router.push('/home')} className="btn-primary mt-4">Back to home</button></div>}
             {txs.length > 0 && !saved && (
               <>
+                {detectedFormat && (
+                  <p className="text-xs text-ink-3 mb-3">
+                    Detected format: <span className="font-medium text-ink">{formatBankLabel(detectedFormat)}</span>
+                  </p>
+                )}
                 <div className="flex justify-between mb-3"><p className="text-sm font-medium text-ink">{sel.length} of {txs.length} selected</p><p className="text-sm text-saffron font-semibold">{formatCurrency(sel.reduce((s,t)=>s+t.amount,0),currency)}</p></div>
                 <div className="flex flex-col gap-2 mb-4">
                   {txs.map((t,i) => (
@@ -181,7 +178,7 @@ export default function UploadPage() {
                 <button onClick={handleSave} className="btn-primary" disabled={saving||!sel.length}>
                   {saving?<span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"/>:`Save ${sel.length} transactions`}
                 </button>
-                <button onClick={()=>{setTxs([]);setError('')}} className="btn-secondary mt-3">Upload different file</button>
+                <button onClick={()=>{setTxs([]);setError('');setDetectedFormat(null)}} className="btn-secondary mt-3">Upload different file</button>
               </>
             )}
           </>

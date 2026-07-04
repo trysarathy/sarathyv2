@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Profile, BudgetEntry, FixedSpending, ChatMessage } from '@/types'
 import { calculateSafeToSpend, formatCurrency, getMonthEntries } from '@/lib/calculations'
+import { getAuthHeaders } from '@/lib/api-auth'
 import TabBar from '@/components/ui/TabBar'
 
 const QUICK_CHIPS = ['Can I afford this?', 'My real picture', 'Plan with me', 'Am I okay?']
@@ -90,7 +91,7 @@ export default function SarathyPage() {
       // Call Groq via our API route
       const response = await fetch('/api/sarathy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: text,
           isAnxious,

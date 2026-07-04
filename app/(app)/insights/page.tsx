@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency, groupEntriesByCategory, getMonthEntries } from '@/lib/calculations'
+import { getAuthHeaders } from '@/lib/api-auth'
 import TabBar from '@/components/ui/TabBar'
 
 export default function InsightsPage() {
@@ -69,7 +70,7 @@ export default function InsightsPage() {
     try {
       const res = await fetch('/api/sarathy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: 'Based on my financial data, give me one powerful insight about my money behavior that I probably do not know about myself. Be specific, warm, and honest.',
           isAnxious: false,

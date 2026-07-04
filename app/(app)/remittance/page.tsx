@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/calculations'
+import { getAuthHeaders } from '@/lib/api-auth'
 import TabBar from '@/components/ui/TabBar'
 
 const PROVIDERS = [
@@ -67,7 +68,7 @@ export default function RemittancePage() {
     try {
       const res = await fetch('/api/sarathy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: `The current SGD to INR rate is ${currentRate.toFixed(2)}. Is this a good time to send money home? Give me a one-sentence tip.`,
           isAnxious: false,
