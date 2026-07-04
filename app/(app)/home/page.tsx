@@ -14,6 +14,7 @@ import TabBar from '@/components/ui/TabBar'
 import MoodCheckIn from '@/components/home/MoodCheckIn'
 import LogExpenseSheet from '@/components/home/LogExpenseSheet'
 import TrustLayerModal from '@/components/home/TrustLayerModal'
+import WiseCard from '@/components/home/WiseCard'
 
 export default function HomePage() {
   const router = useRouter()
@@ -260,6 +261,15 @@ export default function HomePage() {
       {/* Mood check-in */}
       <div className="px-5 mb-4">
         <MoodCheckIn userId={profile.id} />
+      </div>
+
+      {/* Wise integration */}
+      <div className="px-5 mb-4">
+        <WiseCard
+          profile={profile}
+          existingEntries={entries}
+          onSynced={loadData}
+        />
       </div>
 
       {/* Quick links — all features */}
