@@ -5,11 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { getAuthHeaders } from '@/lib/api-auth'
 import type { WiseBalance, WiseTransaction, WiseMode } from '@/lib/wise/types'
 import type { Profile, BudgetEntry } from '@/types'
-import {
-  convertToProfileCurrency,
-  filterNewWiseTransactions,
-  inferCategory,
-} from '@/lib/wise/import-transactions'
+import { syncExpensesToBudget, formatSyncError } from '@/lib/financial/import-expenses'
 
 interface Props {
   profile: Profile
@@ -21,16 +17,6 @@ function formatBalance(amount: number, currency: string): string {
   if (currency === 'SGD') return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   if (currency === 'INR') return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
   return `${currency} ${amount.toFixed(2)}`
-}
-
-function formatSyncError(err: unknown): string {
-  if (err && typeof err === 'object') {
-    const e = err as { message?: string; details?: string; hint?: string }
-    const parts = [e.message, e.details, e.hint].filter(Boolean)
-    if (parts.length) return parts.join(' — ')
-  }
-  if (err instanceof Error) return err.message
-  return 'Sync failed'
 }
 
 export default function WiseCard({ profile, existingEntries, onSynced }: Props) {
@@ -77,39 +63,17 @@ export default function WiseCard({ profile, existingEntries, onSynced }: Props) 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const convertedAmounts = await Promise.all(
-        transactions.map(tx =>
-          convertToProfileCurrency(tx.amount, tx.currency, profileCurrency)
-        )
-      )
-
-      const { toImport, skipped } = filterNewWiseTransactions(
+      const result = await syncExpensesToBudget({
+        supabase,
+        userId: user.id,
+        profileCurrency,
         transactions,
         existingEntries,
-        convertedAmounts
-      )
+        loggedVia: 'wise',
+      })
 
-      if (!toImport.length) {
-        setSyncMessage(`All ${skipped} transaction${skipped === 1 ? '' : 's'} already synced`)
-        return
-      }
-
-      const rows = toImport.map(({ transaction: tx, amount: finalAmount }) => ({
-        user_id: user.id,
-        category: inferCategory(tx.description),
-        amount: finalAmount,
-        description: tx.description,
-        entry_date: tx.date,
-        logged_via: 'wise',
-      }))
-
-      const { error: insertError } = await supabase.from('budget_entries').insert(rows)
-      if (insertError) throw insertError
-
-      setSyncMessage(
-        `Synced ${rows.length} transaction${rows.length === 1 ? '' : 's'}${skipped ? ` · ${skipped} skipped as duplicates` : ''}`
-      )
-      onSynced()
+      setSyncMessage(result.message)
+      if (result.imported > 0) onSynced()
     } catch (err: unknown) {
       setError(formatSyncError(err))
     } finally {
