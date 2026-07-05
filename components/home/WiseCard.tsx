@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { getAuthHeaders } from '@/lib/api-auth'
 import type { WiseBalance, WiseTransaction, WiseMode } from '@/lib/wise/types'
 import type { Profile, BudgetEntry } from '@/types'
-import { syncExpensesToBudget, formatSyncError } from '@/lib/financial/import-expenses'
+import { syncExpensesToBudget, formatSyncError } from '@/lib/wise/import-transactions'
 
 interface Props {
   profile: Profile

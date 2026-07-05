@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import {
@@ -99,7 +100,7 @@ export default function HomePage() {
   const currency = profile.primary_currency || 'SGD'
 
   return (
-    <div className="min-h-dvh bg-cream pb-24">
+    <div className="min-h-dvh bg-cream pb-40">
 
       {/* XP Float */}
       {xpFloat.show && (
@@ -273,9 +274,9 @@ export default function HomePage() {
       </div>
 
       {/* Quick links — all features */}
-      <div className="px-5 mb-4 flex flex-col gap-3">
+      <div className="relative z-10 px-5 mb-4 flex flex-col gap-3">
 
-        <a href="/check" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/check" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">🤔</span>
             <div>
@@ -284,9 +285,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/biases" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/biases" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">🧠</span>
             <div>
@@ -295,9 +296,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/future" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/future" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">🔮</span>
             <div>
@@ -306,9 +307,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/insights" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/insights" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">🧬</span>
             <div>
@@ -317,9 +318,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/mydata" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/mydata" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">📊</span>
             <div>
@@ -328,9 +329,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/remittance" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/remittance" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">💸</span>
             <div>
@@ -339,9 +340,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/marketplace" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/marketplace" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">🏪</span>
             <div>
@@ -350,9 +351,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/upload" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/upload" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">📄</span>
             <div>
@@ -361,9 +362,9 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
-        <a href="/fixed" className="card flex items-center justify-between active:opacity-70">
+        <Link href="/fixed" className="card flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <span className="text-xl">💳</span>
             <div>
@@ -372,15 +373,15 @@ export default function HomePage() {
             </div>
           </div>
           <span className="text-ink-3">→</span>
-        </a>
+        </Link>
 
       </div>
 
-      {/* Log Expense Button */}
-      <div className="fixed bottom-20 left-0 right-0 px-5 z-40">
+      {/* Log Expense Button — pointer-events-none on wrapper so taps reach cards below */}
+      <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
         <button
           onClick={() => setShowLog(true)}
-          className="btn-primary shadow-lg"
+          className="btn-primary shadow-lg pointer-events-auto"
           style={{ boxShadow: '0 4px 20px rgba(249,115,22,0.4)' }}
         >
           + Log expense
