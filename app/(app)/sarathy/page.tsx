@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { Profile, BudgetEntry, FixedSpending, ChatMessage } from '@/types'
-import { calculateSafeToSpend, formatCurrency, getMonthEntries } from '@/lib/calculations'
+import { Profile, ChatMessage } from '@/types'
 import { getAuthHeaders } from '@/lib/api-auth'
 import TabBar from '@/components/ui/TabBar'
 
@@ -36,7 +35,6 @@ export default function SarathyPage() {
 
     const existingMessages = (messagesRes.data || []) as ChatMessage[]
 
-    // If no messages, generate an opening message
     if (existingMessages.length === 0 && profileRes.data) {
       const openingMsg: ChatMessage = {
         id: 'opening',
@@ -73,42 +71,12 @@ export default function SarathyPage() {
     setInput('')
 
     try {
-      // Get fresh data for context
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const [entriesRes, fixedRes] = await Promise.all([
-        supabase.from('budget_entries').select('*').eq('user_id', user.id),
-        supabase.from('fixed_spending').select('*').eq('user_id', user.id).eq('is_active', true),
-      ])
-
-      const entries = (entriesRes.data || []) as BudgetEntry[]
-      const fixed = (fixedRes.data || []) as FixedSpending[]
-      const safeData = calculateSafeToSpend(profile, entries, fixed)
-      const monthEntries = getMonthEntries(entries)
-      const monthSpent = monthEntries.reduce((sum, e) => sum + e.amount, 0)
-
-      // Call Groq via our API route
       const response = await fetch('/api/sarathy', {
         method: 'POST',
         headers: await getAuthHeaders(),
         body: JSON.stringify({
           message: text,
           isAnxious,
-          context: {
-            name: profile.name,
-            companion_vibe: profile.companion_vibe,
-            currency: profile.primary_currency || 'SGD',
-            planning_amount: profile.planning_amount,
-            spent: monthSpent,
-            safe_today: safeData.safeToSpend,
-            days_remaining: safeData.daysLeft,
-            status: safeData.status,
-            money_fear: profile.money_fear,
-            responsible_for: profile.responsible_for,
-            streak: profile.daily_login_streak,
-          },
-          history: messages.slice(-8).map(m => ({ role: m.role, content: m.content })),
         }),
       })
 
@@ -123,17 +91,10 @@ export default function SarathyPage() {
 
       setMessages(prev => [...prev, assistantMsg])
       setIsAnxious(false)
-
-      // Save both messages to Supabase
-      await supabase.from('chat_messages').insert([
-        { user_id: user.id, role: 'user', content: text },
-        { user_id: user.id, role: 'assistant', content: assistantMsg.content },
-      ])
-
-    } catch (err) {
+    } catch {
       const fallbackMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        user_id: profile?.id || '',
+        user_id: profile.id,
         role: 'assistant',
         content: "I'm having trouble connecting right now — but I'm here. Try again in a moment 🌸",
         created_at: new Date().toISOString(),
@@ -159,7 +120,6 @@ export default function SarathyPage() {
 
   return (
     <div className="min-h-dvh bg-cream flex flex-col">
-      {/* Header */}
       <div className="px-5 pt-12 pb-4 border-b border-cream-3 bg-cream">
         <div className="flex items-center justify-between">
           <div>
@@ -175,7 +135,6 @@ export default function SarathyPage() {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-44 flex flex-col gap-3">
         {messages.map((msg) => (
           <div
@@ -203,9 +162,7 @@ export default function SarathyPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
       <div className="fixed bottom-16 left-0 right-0 bg-cream border-t border-cream-3 px-4 py-3 pb-safe">
-        {/* Quick chips */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-hide">
           {QUICK_CHIPS.map(chip => (
             <button
@@ -218,7 +175,6 @@ export default function SarathyPage() {
           ))}
         </div>
 
-        {/* Text input */}
         <div className="flex gap-2">
           <input
             type="text"

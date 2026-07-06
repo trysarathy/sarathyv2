@@ -17,6 +17,7 @@ import LogExpenseSheet from '@/components/home/LogExpenseSheet'
 import TrustLayerModal from '@/components/home/TrustLayerModal'
 import WiseCard from '@/components/home/WiseCard'
 import FinverseCard from '@/components/home/FinverseCard'
+import DailyBriefCard from '@/components/home/DailyBriefCard'
 
 export default function HomePage() {
   const router = useRouter()
@@ -32,6 +33,7 @@ export default function HomePage() {
   const [showTrust, setShowTrust] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<PLCategory | null>(null)
   const [xpFloat, setXpFloat] = useState<{ show: boolean; x: number; y: number }>({ show: false, x: 0, y: 0 })
+  const [showBriefGreeting, setShowBriefGreeting] = useState(false)
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -112,8 +114,12 @@ export default function HomePage() {
 
       {/* Header */}
       <div className="px-5 pt-12 pb-4">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-ink-3 text-sm">Hey {profile.name?.split(' ')[0]} 👋</p>
+        <DailyBriefCard onBriefLoaded={setShowBriefGreeting} />
+
+        <div className={`flex items-center mb-1 ${showBriefGreeting ? 'justify-end' : 'justify-between'}`}>
+          {!showBriefGreeting && (
+            <p className="text-ink-3 text-sm">Hey {profile.name?.split(' ')[0]} 👋</p>
+          )}
           <div className="flex items-center gap-1.5 text-xs text-ink-3">
             <span>🔥</span>
             <span className="font-medium">{profile.daily_login_streak}d</span>

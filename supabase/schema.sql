@@ -8,7 +8,7 @@
 -- → triggers → RLS). Existing projects: use individual ALTER statements instead
 -- of CREATE TABLE when tables already exist.
 --
--- Last updated: 2026-07-05 (finverse_connections; budget_entries logged_via: finverse)
+-- Last updated: 2026-07-06 (daily_briefs, conversation_summaries — companion context)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -244,6 +244,43 @@ CREATE INDEX IF NOT EXISTS finverse_connections_user_id_idx
   ON public.finverse_connections (user_id);
 
 -- -----------------------------------------------------------------------------
+-- daily_briefs
+-- Cached Groq-generated home greeting — one paragraph per user per day.
+-- Server-only access (SUPABASE_SERVICE_ROLE_KEY). Do not expose to client SELECT.
+-- Mood may inform tone in generation but must not be named explicitly in copy.
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.daily_briefs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  brief_date date NOT NULL,
+  content text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, brief_date)
+);
+
+COMMENT ON TABLE public.daily_briefs IS 'Daily home brief cache; server-only via service role';
+
+CREATE INDEX IF NOT EXISTS daily_briefs_user_date_idx
+  ON public.daily_briefs (user_id, brief_date DESC);
+
+-- -----------------------------------------------------------------------------
+-- conversation_summaries
+-- Rolling summary of chat_messages older than the last 20 verbatim turns.
+-- Server-only access (SUPABASE_SERVICE_ROLE_KEY).
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.conversation_summaries (
+  user_id uuid PRIMARY KEY REFERENCES public.profiles (id) ON DELETE CASCADE,
+  summary text NOT NULL DEFAULT '',
+  summarized_through timestamptz,
+  message_count integer NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.conversation_summaries IS 'Compressed Sarathy chat memory; server-only via service role';
+
+-- -----------------------------------------------------------------------------
 -- waitlist
 -- Pre-launch signup form (public insert, no auth required).
 -- -----------------------------------------------------------------------------
@@ -362,9 +399,11 @@ ALTER TABLE public.circle_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.circle_moments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.remittance_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.finverse_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_briefs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversation_summaries ENABLE ROW LEVEL SECURITY;
 
--- finverse_connections: no policies for authenticated users.
--- All access goes through server routes using SUPABASE_SERVICE_ROLE_KEY.
+-- finverse_connections, daily_briefs, conversation_summaries:
+-- no policies for authenticated users. Server routes use SUPABASE_SERVICE_ROLE_KEY.
 
 -- Example policies (adjust to match your live Supabase project):
 
@@ -406,3 +445,28 @@ CREATE INDEX IF NOT EXISTS finverse_connections_user_id_idx
   ON public.finverse_connections (user_id);
 
 ALTER TABLE public.finverse_connections ENABLE ROW LEVEL SECURITY;
+
+-- Companion context (2026-07-06)
+CREATE TABLE IF NOT EXISTS public.daily_briefs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  brief_date date NOT NULL,
+  content text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, brief_date)
+);
+
+CREATE INDEX IF NOT EXISTS daily_briefs_user_date_idx
+  ON public.daily_briefs (user_id, brief_date DESC);
+
+ALTER TABLE public.daily_briefs ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.conversation_summaries (
+  user_id uuid PRIMARY KEY REFERENCES public.profiles (id) ON DELETE CASCADE,
+  summary text NOT NULL DEFAULT '',
+  summarized_through timestamptz,
+  message_count integer NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.conversation_summaries ENABLE ROW LEVEL SECURITY;

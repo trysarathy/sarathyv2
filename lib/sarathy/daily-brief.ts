@@ -1,0 +1,92 @@
+import { getGroqClient } from '@/lib/groq'
+import { createServiceSupabaseClient } from '@/lib/supabase-admin'
+import { buildCompanionContext } from './context'
+import { formatContextForPrompt } from './format-context'
+import { todayInSingapore } from './sgt'
+import type { CompanionContext } from './types'
+
+export function buildDailyBriefPrompt(ctx: CompanionContext): string {
+  const contextBlock = formatContextForPrompt(ctx)
+  const softenTone =
+    ctx.mood.trend === 'worsening' || ctx.mood.trend === 'mixed'
+      ? 'Their mood trend suggests stress — you may soften tone slightly, but do NOT name or reference their emotional state.'
+      : 'Do NOT name or reference their mood or emotional state.'
+
+  return `You are Sarathy — a warm financial companion for international students in Singapore.
+Write the user's morning home-screen brief in English only (no Hinglish/Singlish — this is not a chat reply).
+
+Requirements:
+- Exactly 1 warm paragraph, max 3 sentences.
+- Include: greeting with their first name (${ctx.user.firstName}), their safe-to-spend today, ONE noteworthy observation from context (spending pattern, recent notable, streak, etc.).
+- Where natural, add ONE small actionable suggestion — keep it gentle, never preachy.
+- Use ONLY real numbers from context — never invent amounts.
+- ${softenTone}
+- No bullet points. No corporate speak.
+
+--- USER CONTEXT (ground truth) ---
+${contextBlock}
+--- END CONTEXT ---`
+}
+
+export async function getOrCreateDailyBrief(
+  userId: string
+): Promise<{ brief: string; cached: boolean } | null> {
+  const supabase = createServiceSupabaseClient()
+  const briefDate = todayInSingapore()
+
+  const { data: existing } = await supabase
+    .from('daily_briefs')
+    .select('content')
+    .eq('user_id', userId)
+    .eq('brief_date', briefDate)
+    .maybeSingle()
+
+  if (existing?.content) {
+    return { brief: existing.content, cached: true }
+  }
+
+  let ctx: CompanionContext
+  try {
+    ctx = await buildCompanionContext(userId)
+  } catch (error) {
+    console.error('daily-brief context error:', error)
+    return null
+  }
+
+  let content: string
+  try {
+    const completion = await getGroqClient().chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      max_tokens: 120,
+      messages: [{ role: 'user', content: buildDailyBriefPrompt(ctx) }],
+    })
+    content = completion.choices[0]?.message?.content?.trim() ?? ''
+    if (!content) return null
+  } catch (error) {
+    console.error('daily-brief Groq error:', error)
+    return null
+  }
+
+  const { error: insertError } = await supabase.from('daily_briefs').insert({
+    user_id: userId,
+    brief_date: briefDate,
+    content,
+  })
+
+  if (insertError && insertError.code !== '23505') {
+    console.error('daily-brief insert error:', insertError)
+  }
+
+  const { data: cached } = await supabase
+    .from('daily_briefs')
+    .select('content')
+    .eq('user_id', userId)
+    .eq('brief_date', briefDate)
+    .maybeSingle()
+
+  if (cached?.content) {
+    return { brief: cached.content, cached: Boolean(existing) }
+  }
+
+  return { brief: content, cached: false }
+}

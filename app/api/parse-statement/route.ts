@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Groq from 'groq-sdk'
+import { getGroqClient } from '@/lib/groq'
 import { getAuthenticatedUser } from '@/lib/supabase-server'
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+const groq = getGroqClient()
 
 export async function POST(req: NextRequest) {
   const user = await getAuthenticatedUser(req)
