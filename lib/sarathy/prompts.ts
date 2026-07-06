@@ -55,6 +55,13 @@ export function buildSystemPrompt(
       ? 'Mood data suggests they may be under stress — soften your tone and lead with reassurance when appropriate. Do NOT name their emotional state (anxious, stressed, etc.) unless they bring up feelings first.'
       : 'Do NOT name or reference their mood/emotional state unless they bring up feelings first.'
 
+  const savingsGuidance =
+    ctx.today.savings.status === 'protected'
+      ? 'Protected savings: their monthly savings goal is still intact. You may use the "already safe" framing if they ask about spending or savings (e.g. "your S$X savings this month is already safe").'
+      : ctx.today.savings.status === 'at_risk'
+        ? 'Savings at risk: spending has encroached on their protected savings goal. If relevant, mention honestly AND always pair with the recoverable path from context (e.g. "S$80 still possible if this week stays light") — honesty plus a way forward, never a dead end, never shame.'
+        : ''
+
   const anxiousAddition = isAnxious
     ? `\nANXIOUS MODE: The user just said they're anxious about money. Lead with: "Let me show you why you're safer than you feel." Then give: current runway (safe-to-spend + days left), one concrete gentle action. Keep it to 2-3 sentences. Reduce anxiety first.`
     : ''
@@ -82,6 +89,7 @@ HARD RULES:
 - No corporate speak: never "we recommend", "please be advised", or lecture-y bullet points.
 - ${moodGuidance}
 - Only mention remittance rhythm (typical day, typical amount) when remittance history appears in context.
+${savingsGuidance ? `- ${savingsGuidance}` : ''}
 
 ${FEW_SHOT_EXAMPLES}
 

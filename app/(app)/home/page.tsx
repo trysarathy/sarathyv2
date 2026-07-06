@@ -18,6 +18,7 @@ import TrustLayerModal from '@/components/home/TrustLayerModal'
 import WiseCard from '@/components/home/WiseCard'
 import FinverseCard from '@/components/home/FinverseCard'
 import DailyBriefCard from '@/components/home/DailyBriefCard'
+import SavingsGoalPrompt from '@/components/home/SavingsGoalPrompt'
 
 export default function HomePage() {
   const router = useRouter()
@@ -114,7 +115,12 @@ export default function HomePage() {
 
       {/* Header */}
       <div className="px-5 pt-12 pb-4">
-        <DailyBriefCard onBriefLoaded={setShowBriefGreeting} />
+        <DailyBriefCard
+          key={`brief-${profile.monthly_savings_goal ?? 0}`}
+          onBriefLoaded={setShowBriefGreeting}
+        />
+
+        <SavingsGoalPrompt profile={profile} onUpdated={loadData} />
 
         <div className={`flex items-center mb-1 ${showBriefGreeting ? 'justify-end' : 'justify-between'}`}>
           {!showBriefGreeting && (
@@ -149,6 +155,17 @@ export default function HomePage() {
           }`}>
             {formatCurrency(safeData.safeToSpend, currency)}
           </p>
+          {safeData.savings.status === 'protected' && (
+            <p className="text-safe text-xs font-medium mt-2">
+              🛡️ {formatCurrency(safeData.savings.monthlyGoal, currency)} savings protected this month
+            </p>
+          )}
+          {safeData.savings.status === 'at_risk' && safeData.savings.stillPossible !== null && (
+            <p className="text-warning text-xs font-medium mt-2">
+              ⚠️ {formatCurrency(safeData.savings.stillPossible, currency)} of your{' '}
+              {formatCurrency(safeData.savings.monthlyGoal, currency)} savings goal still possible
+            </p>
+          )}
           <p className="text-ink-3 text-xs mt-2">Tap to see how I calculated this →</p>
         </button>
 

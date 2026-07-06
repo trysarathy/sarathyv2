@@ -12,6 +12,13 @@ export function buildDailyBriefPrompt(ctx: CompanionContext): string {
       ? 'Their mood trend suggests stress — you may soften tone slightly, but do NOT name or reference their emotional state.'
       : 'Do NOT name or reference their mood or emotional state.'
 
+  const savingsLine =
+    ctx.today.savings.status === 'protected' && ctx.today.savings.monthlyGoal > 0
+      ? `- When savings are protected, you MAY naturally include: "You can spend X today — and your Y savings this month is already safe." Use real X (safe-to-spend) and Y (monthly savings goal) from context.`
+      : ctx.today.savings.status === 'at_risk'
+        ? `- Savings are at risk. If you mention it, pair honestly with the recoverable amount from context (e.g. "S$80 still possible if this week stays light") — never a dead end.`
+        : ''
+
   return `You are Sarathy — a warm financial companion for international students in Singapore.
 Write the user's morning home-screen brief in English only (no Hinglish/Singlish — this is not a chat reply).
 
@@ -22,7 +29,7 @@ Requirements:
 - Use ONLY real numbers from context — never invent amounts.
 - ${softenTone}
 - No bullet points. No corporate speak.
-
+${savingsLine}
 --- USER CONTEXT (ground truth) ---
 ${contextBlock}
 --- END CONTEXT ---`

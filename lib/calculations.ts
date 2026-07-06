@@ -13,6 +13,7 @@ export function calculateSafeToSpend(
   const daysLeft = daysInMonth - today + 1
   const currency = profile.primary_currency || 'SGD'
   const planAmount = profile.planning_amount || 0
+  const savingsGoal = profile.monthly_savings_goal ?? 0
 
   // Fixed costs still due this month
   const fixedLeft = fixedSpending
@@ -29,9 +30,20 @@ export function calculateSafeToSpend(
   // 10% safety buffer
   const buffer = planAmount * 0.10
 
-  // Free money
-  const freeToUse = planAmount - fixedLeft - alreadySpent - buffer
+  const roomAfterEssentials = planAmount - fixedLeft - alreadySpent - buffer
+  const freeToUse = roomAfterEssentials - savingsGoal
   const safeToSpend = Math.max(0, Math.round(freeToUse / Math.max(daysLeft, 1)))
+
+  let savingsStatus: SafeToSpendData['savings']['status'] = 'none'
+  let stillPossible: number | null = null
+  if (savingsGoal > 0) {
+    if (roomAfterEssentials >= savingsGoal) {
+      savingsStatus = 'protected'
+    } else {
+      savingsStatus = 'at_risk'
+      stillPossible = Math.max(0, Math.round(roomAfterEssentials))
+    }
+  }
 
   // Safety status
   const dailyIdeal = planAmount / daysInMonth
@@ -61,6 +73,11 @@ export function calculateSafeToSpend(
     freeToUse: Math.max(0, freeToUse),
     daysLeft,
     currency,
+    savings: {
+      monthlyGoal: savingsGoal,
+      status: savingsStatus,
+      stillPossible,
+    },
   }
 }
 

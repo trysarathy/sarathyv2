@@ -46,6 +46,18 @@ function formatSync(ctx: CompanionContext): string {
   return parts.length > 0 ? parts.join(' · ') : 'no bank sync connected'
 }
 
+function formatSavings(ctx: CompanionContext, currency: string): string | null {
+  const { savings } = ctx.today
+  if (savings.monthlyGoal <= 0) return null
+  if (savings.status === 'protected') {
+    return `savings ${formatCurrency(savings.monthlyGoal, currency)}/month protected`
+  }
+  if (savings.status === 'at_risk' && savings.stillPossible !== null) {
+    return `savings at risk — ${formatCurrency(savings.stillPossible, currency)} of ${formatCurrency(savings.monthlyGoal, currency)} still possible if spending stays light`
+  }
+  return null
+}
+
 /** Compact prose block for LLM prompts (~400 tokens). */
 export function formatContextForPrompt(ctx: CompanionContext): string {
   const { user, today, spending, gamification } = ctx
@@ -73,11 +85,13 @@ export function formatContextForPrompt(ctx: CompanionContext): string {
       : null
 
   const remittanceText = formatRemittance(ctx)
+  const savingsText = formatSavings(ctx, currency)
   const homeContext = [user.homeCountry, user.currentCountry].filter(Boolean).join(' → ')
 
   const lines = [
     `${user.firstName} · ${currency} · ${today.status} · safe ${safe}/day · ${today.daysLeftInMonth} days left · ${spent}/${budget} spent this month${todaySpent}`,
     deviationText,
+    savingsText,
     `streak ${gamification.streak} · ${gamification.levelName} (${gamification.totalXp} XP) · ${formatMoodTrend(ctx)}`,
     remittanceText,
     formatSync(ctx),

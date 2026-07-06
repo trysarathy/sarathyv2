@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Profile } from '@/types'
 import { getLevelName, formatCurrency } from '@/lib/calculations'
+import { saveMonthlySavingsGoal } from '@/lib/savings-goal'
 import TabBar from '@/components/ui/TabBar'
 import CurrencySelector from '@/components/ui/CurrencySelector'
 
@@ -12,12 +13,18 @@ export default function ProfilePage() {
   const supabase = createClient()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [savingsGoal, setSavingsGoal] = useState('')
+  const [savingGoal, setSavingGoal] = useState(false)
+  const [goalSaved, setGoalSaved] = useState(false)
 
   const loadProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/login'); return }
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    if (data) setProfile(data as Profile)
+    if (data) {
+      setProfile(data as Profile)
+      setSavingsGoal(String((data as Profile).monthly_savings_goal ?? 0))
+    }
     setLoading(false)
   }
 
@@ -32,6 +39,26 @@ export default function ProfilePage() {
     if (!profile) return
     await supabase.from('profiles').update({ primary_currency: code }).eq('id', profile.id)
     setProfile(prev => prev ? { ...prev, primary_currency: code } : prev)
+  }
+
+  const handleSavingsGoalSave = async () => {
+    if (!profile) return
+    const parsed = Math.max(0, Math.round(parseFloat(savingsGoal) || 0))
+    setSavingGoal(true)
+    setGoalSaved(false)
+    try {
+      await saveMonthlySavingsGoal(parsed)
+      setProfile(prev => prev ? {
+        ...prev,
+        monthly_savings_goal: parsed,
+        savings_goal_prompt_dismissed: true,
+      } : prev)
+      setSavingsGoal(String(parsed))
+      setGoalSaved(true)
+      setTimeout(() => setGoalSaved(false), 2000)
+    } finally {
+      setSavingGoal(false)
+    }
   }
 
   if (loading || !profile) {
@@ -72,6 +99,35 @@ export default function ProfilePage() {
             <p className="text-xs text-ink-3">monthly plan</p>
           </div>
         </div>
+      </div>
+
+      <div className="card mb-4">
+        <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">
+          🛡️ Monthly savings goal
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={savingsGoal}
+            onChange={(e) => setSavingsGoal(e.target.value)}
+            className="input-field flex-1 py-2.5 text-sm"
+          />
+          <button
+            onClick={handleSavingsGoalSave}
+            disabled={savingGoal}
+            className="px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-saffron disabled:opacity-50"
+          >
+            Save
+          </button>
+        </div>
+        <p className="text-xs text-ink-3 mt-2">
+          Sarathy treats this as already set aside — your safe-to-spend won&apos;t touch it. Set to 0 to turn off.
+        </p>
+        {goalSaved && (
+          <p className="text-xs text-safe mt-2 font-medium">Saved ✓</p>
+        )}
       </div>
 
       <div className="card mb-4">

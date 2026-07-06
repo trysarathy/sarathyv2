@@ -112,6 +112,7 @@ export async function buildCompanionContext(userId: string): Promise<CompanionCo
       spentThisMonth: safeData.alreadySpent,
       remainingBudget: Math.max(0, safeData.planAmount - safeData.alreadySpent),
       spentToday,
+      savings: safeData.savings,
     },
     spending,
     gamification: {

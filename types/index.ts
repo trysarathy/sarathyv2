@@ -21,6 +21,8 @@ export interface Profile {
   onboarding_complete: boolean
   colour_theme: string
   quiet_mode_until: string | null
+  monthly_savings_goal?: number
+  savings_goal_prompt_dismissed?: boolean
   created_at: string
 }
 
@@ -86,6 +88,7 @@ export interface MoneyAllocation {
 }
 
 export type SafetyStatus = 'safe' | 'tight' | 'danger'
+export type SavingsProtectionStatus = 'none' | 'protected' | 'at_risk'
 
 export interface SafeToSpendData {
   safeToSpend: number
@@ -98,6 +101,11 @@ export interface SafeToSpendData {
   freeToUse: number
   daysLeft: number
   currency: string
+  savings: {
+    monthlyGoal: number
+    status: SavingsProtectionStatus
+    stillPossible: number | null
+  }
 }
 
 export interface PLCategory {

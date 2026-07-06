@@ -38,6 +38,11 @@ export interface CompanionContext {
     spentThisMonth: number
     remainingBudget: number
     spentToday: number
+    savings: {
+      monthlyGoal: number
+      status: 'none' | 'protected' | 'at_risk'
+      stillPossible: number | null
+    }
   }
   spending: {
     thisWeekByCategory: Record<string, number>

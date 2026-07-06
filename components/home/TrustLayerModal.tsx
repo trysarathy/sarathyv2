@@ -13,6 +13,14 @@ export default function TrustLayerModal({ safeData, onClose }: Props) {
     { label: 'Bills still due', value: -safeData.fixedLeft, sign: '−', color: 'text-danger' },
     { label: 'Already spent', value: -safeData.alreadySpent, sign: '−', color: 'text-danger' },
     { label: 'Safety buffer (10%)', value: -safeData.buffer, sign: '−', color: 'text-warning' },
+    ...(safeData.savings.monthlyGoal > 0
+      ? [{
+          label: 'Protected savings',
+          value: -safeData.savings.monthlyGoal,
+          sign: '−' as const,
+          color: 'text-saffron',
+        }]
+      : []),
     { label: 'Free to use', value: safeData.freeToUse, sign: '=', color: 'text-ink font-semibold' },
   ]
 
