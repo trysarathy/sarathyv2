@@ -8,8 +8,7 @@
 -- → triggers → RLS). Existing projects: use individual ALTER statements instead
 -- of CREATE TABLE when tables already exist.
 --
--- Last updated: 2026-07-04 (budget_entries: logged_via, payment_method,
--- original_amount, original_currency)
+-- Last updated: 2026-07-05 (finverse_connections; budget_entries logged_via: finverse)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -58,7 +57,7 @@ COMMENT ON COLUMN public.profiles.secondary_currency IS 'Used by future/page.tsx
 -- -----------------------------------------------------------------------------
 -- budget_entries
 -- Expense log (manual, statement upload, receipt, Wise sync).
--- logged_via values used in app: manual | statement | receipt | wise
+-- logged_via values used in app: manual | statement | receipt | wise | finverse
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.budget_entries (
@@ -76,7 +75,7 @@ CREATE TABLE IF NOT EXISTS public.budget_entries (
 );
 
 COMMENT ON TABLE public.budget_entries IS 'All user expenses; amount is stored in profile primary_currency after FX conversion when applicable';
-COMMENT ON COLUMN public.budget_entries.logged_via IS 'Source: manual, statement, receipt, wise';
+COMMENT ON COLUMN public.budget_entries.logged_via IS 'Source: manual, statement, receipt, wise, finverse';
 COMMENT ON COLUMN public.budget_entries.original_amount IS 'Pre-conversion amount when logged in a foreign currency (LogExpenseSheet)';
 COMMENT ON COLUMN public.budget_entries.original_currency IS 'ISO currency code for original_amount';
 
@@ -222,6 +221,29 @@ CREATE INDEX IF NOT EXISTS remittance_logs_user_id_idx
   ON public.remittance_logs (user_id, created_at DESC);
 
 -- -----------------------------------------------------------------------------
+-- finverse_connections
+-- Bank link tokens from Finverse Data API. Server-only access via service role.
+-- refresh_token must never be readable by the browser (no RLS SELECT for users).
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.finverse_connections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE REFERENCES public.profiles (id) ON DELETE CASCADE,
+  login_identity_id text NOT NULL,
+  institution_name text,
+  refresh_token text NOT NULL,
+  access_token text,
+  access_token_expires_at timestamptz,
+  linked_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.finverse_connections IS 'Finverse bank link credentials; read/write via SUPABASE_SERVICE_ROLE_KEY only';
+
+CREATE INDEX IF NOT EXISTS finverse_connections_user_id_idx
+  ON public.finverse_connections (user_id);
+
+-- -----------------------------------------------------------------------------
 -- waitlist
 -- Pre-launch signup form (public insert, no auth required).
 -- -----------------------------------------------------------------------------
@@ -339,6 +361,10 @@ ALTER TABLE public.circles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.circle_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.circle_moments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.remittance_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.finverse_connections ENABLE ROW LEVEL SECURITY;
+
+-- finverse_connections: no policies for authenticated users.
+-- All access goes through server routes using SUPABASE_SERVICE_ROLE_KEY.
 
 -- Example policies (adjust to match your live Supabase project):
 
@@ -362,3 +388,21 @@ ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS original_amount numer
 ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS original_currency text;
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS secondary_currency text;
+
+-- Finverse bank linking (2026-07-05)
+CREATE TABLE IF NOT EXISTS public.finverse_connections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE REFERENCES public.profiles (id) ON DELETE CASCADE,
+  login_identity_id text NOT NULL,
+  institution_name text,
+  refresh_token text NOT NULL,
+  access_token text,
+  access_token_expires_at timestamptz,
+  linked_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS finverse_connections_user_id_idx
+  ON public.finverse_connections (user_id);
+
+ALTER TABLE public.finverse_connections ENABLE ROW LEVEL SECURITY;

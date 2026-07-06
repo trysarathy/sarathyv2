@@ -1,0 +1,239 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
+import { getAuthHeaders } from '@/lib/api-auth'
+import type { FinancialBalance, FinancialTransaction } from '@/lib/financial/types'
+import type { Profile, BudgetEntry } from '@/types'
+import { syncExpensesToBudget, formatSyncError } from '@/lib/financial/import-expenses'
+
+interface Props {
+  profile: Profile
+  existingEntries: BudgetEntry[]
+  onSynced: () => void
+}
+
+function formatBalance(amount: number, currency: string): string {
+  if (currency === 'SGD') {
+    return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+  if (currency === 'INR') {
+    return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+  }
+  return `${currency} ${amount.toFixed(2)}`
+}
+
+export default function FinverseCard({ profile, existingEntries, onSynced }: Props) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const supabase = createClient()
+  const profileCurrency = profile.primary_currency || 'SGD'
+
+  const [connected, setConnected] = useState(false)
+  const [institutionName, setInstitutionName] = useState<string | null>(null)
+  const [balances, setBalances] = useState<FinancialBalance[]>([])
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [connecting, setConnecting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [error, setError] = useState('')
+  const [syncMessage, setSyncMessage] = useState('')
+  const [linkBanner, setLinkBanner] = useState('')
+
+  const loadSyncData = useCallback(async () => {
+    const res = await fetch('/api/finverse/sync?days=30', { headers: await getAuthHeaders() })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Could not load bank data')
+    }
+    setInstitutionName(data.institutionName ?? null)
+    setBalances(data.balances ?? [])
+    setTransactions(data.transactions ?? [])
+  }, [])
+
+  const loadStatus = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/finverse/status', { headers: await getAuthHeaders() })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Could not load bank status')
+        setConnected(false)
+        return
+      }
+
+      setConnected(Boolean(data.connected))
+      setInstitutionName(data.institutionName ?? null)
+
+      if (data.connected) {
+        await loadSyncData()
+      } else {
+        setBalances([])
+        setTransactions([])
+      }
+    } catch {
+      setError('Could not connect to bank service')
+      setConnected(false)
+    } finally {
+      setLoading(false)
+    }
+  }, [loadSyncData])
+
+  useEffect(() => { loadStatus() }, [loadStatus])
+
+  useEffect(() => {
+    const finverse = searchParams.get('finverse')
+    if (finverse === 'connected') {
+      setLinkBanner('Bank connected successfully')
+      loadStatus()
+      router.replace('/home', { scroll: false })
+    } else if (finverse === 'error') {
+      const reason = searchParams.get('reason')
+      setLinkBanner('')
+      setError(reason ? `Bank link failed: ${reason}` : 'Bank link failed — please try again')
+      router.replace('/home', { scroll: false })
+    }
+  }, [searchParams, loadStatus, router])
+
+  const handleConnect = async () => {
+    setConnecting(true)
+    setError('')
+    setLinkBanner('')
+    try {
+      const res = await fetch('/api/finverse/link', { headers: await getAuthHeaders() })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        setError(data.error || 'Could not start bank link')
+        setConnecting(false)
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      setError('Could not start bank link')
+      setConnecting(false)
+    }
+  }
+
+  const handleSync = async () => {
+    if (!transactions.length) return
+    setSyncing(true)
+    setError('')
+    setSyncMessage('')
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const result = await syncExpensesToBudget({
+        supabase,
+        userId: user.id,
+        profileCurrency,
+        transactions,
+        existingEntries,
+        loggedVia: 'finverse',
+      })
+
+      setSyncMessage(result.message)
+      if (result.imported > 0) onSynced()
+    } catch (err: unknown) {
+      setError(formatSyncError(err))
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div className="card border-l-4 border-indigo-500">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🏦</span>
+          <div>
+            <p className="font-medium text-ink text-sm">Bank account</p>
+            <p className="text-ink-3 text-xs">
+              {connected && institutionName ? institutionName : 'Link via Finverse'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {linkBanner && (
+        <div className="bg-green-50 text-safe text-sm px-3 py-2 rounded-xl mb-3">{linkBanner}</div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center gap-2 py-2">
+          <div className="w-5 h-5 border-2 border-saffron border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-ink-3">Loading…</p>
+        </div>
+      ) : !connected ? (
+        <>
+          {error && (
+            <div className="bg-red-50 text-danger text-sm px-3 py-2 rounded-xl mb-3">{error}</div>
+          )}
+          <p className="text-sm text-ink-3 mb-4">
+            Connect your bank to import balances and transactions into Sarathy.
+          </p>
+          <button
+            onClick={handleConnect}
+            disabled={connecting}
+            className="btn-primary w-full"
+          >
+            {connecting ? (
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              'Connect bank'
+            )}
+          </button>
+        </>
+      ) : (
+        <>
+          {error && !balances.length ? (
+            <p className="text-sm text-danger mb-3">{error}</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {balances.length === 0 ? (
+                <p className="text-sm text-ink-3 col-span-2">No balances available yet</p>
+              ) : (
+                balances.map(b => (
+                  <div key={b.currency} className="bg-cream rounded-xl p-3">
+                    <p className="text-xs text-ink-3 mb-0.5">{b.currency}</p>
+                    <p className="font-fraunces text-lg font-semibold text-ink">
+                      {formatBalance(b.amount, b.currency)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {transactions.length > 0 && (
+            <p className="text-xs text-ink-3 mb-3">
+              {transactions.length} expense{transactions.length === 1 ? '' : 's'} ready to import (last 30 days)
+            </p>
+          )}
+
+          {syncMessage && (
+            <div className="bg-green-50 text-safe text-sm px-3 py-2 rounded-xl mb-3">{syncMessage}</div>
+          )}
+          {error && balances.length > 0 && (
+            <div className="bg-red-50 text-danger text-sm px-3 py-2 rounded-xl mb-3">{error}</div>
+          )}
+
+          <button
+            onClick={handleSync}
+            disabled={syncing || !transactions.length}
+            className="btn-primary w-full"
+          >
+            {syncing ? (
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              'Sync transactions'
+            )}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}

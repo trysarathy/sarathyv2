@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
@@ -16,6 +16,7 @@ import MoodCheckIn from '@/components/home/MoodCheckIn'
 import LogExpenseSheet from '@/components/home/LogExpenseSheet'
 import TrustLayerModal from '@/components/home/TrustLayerModal'
 import WiseCard from '@/components/home/WiseCard'
+import FinverseCard from '@/components/home/FinverseCard'
 
 export default function HomePage() {
   const router = useRouter()
@@ -271,6 +272,24 @@ export default function HomePage() {
           existingEntries={entries}
           onSynced={loadData}
         />
+      </div>
+
+      {/* Finverse bank linking */}
+      <div className="px-5 mb-4">
+        <Suspense
+          fallback={
+            <div className="card border-l-4 border-indigo-500 flex items-center gap-2 py-4 px-4">
+              <div className="w-5 h-5 border-2 border-saffron border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-ink-3">Loading bank…</p>
+            </div>
+          }
+        >
+          <FinverseCard
+            profile={profile}
+            existingEntries={entries}
+            onSynced={loadData}
+          />
+        </Suspense>
       </div>
 
       {/* Quick links — all features */}
