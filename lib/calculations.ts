@@ -1,4 +1,6 @@
 import { BudgetEntry, FixedSpending, Profile, SafeToSpendData, SafetyStatus, PLCategory } from '@/types'
+import { todayInSingapore } from '@/lib/sarathy/sgt'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 
 export function calculateSafeToSpend(
   profile: Profile,
@@ -11,7 +13,7 @@ export function calculateSafeToSpend(
   const month = now.getMonth()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const daysLeft = daysInMonth - today + 1
-  const currency = profile.primary_currency || 'SGD'
+  const currency = getProfileDisplayCurrency(profile)
   const planAmount = profile.planning_amount || 0
   const savingsGoal = profile.monthly_savings_goal ?? 0
 
@@ -136,9 +138,6 @@ export function getLevelName(xp: number): string {
 }
 
 export function getMonthEntries(entries: BudgetEntry[]): BudgetEntry[] {
-  const now = new Date()
-  return entries.filter(e => {
-    const d = new Date(e.entry_date)
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  })
+  const monthKey = todayInSingapore().slice(0, 7)
+  return entries.filter(e => e.entry_date.slice(0, 7) === monthKey)
 }

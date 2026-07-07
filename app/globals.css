@@ -51,6 +51,31 @@
     letter-spacing: -0.03em;
   }
 
+  .safe-number-monument {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 5rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  .home-header-zone {
+    background: linear-gradient(180deg, #1E1B4B 0%, #252270 55%, #FFFDF9 100%);
+  }
+
+  .home-meter-track {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+  }
+
+  .home-meter-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.6s ease;
+  }
+
   .card {
     background: white;
     border-radius: 16px;
@@ -253,4 +278,36 @@
   inset: 0;
   background: rgba(0,0,0,0.4);
   z-index: 99;
+}
+
+/* Home page entrance */
+@keyframes homeFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.home-enter-1 {
+  animation: homeFadeUp 0.5s ease forwards;
+}
+
+.home-enter-2 {
+  animation: homeFadeUp 0.5s ease forwards;
+  animation-delay: 80ms;
+  opacity: 0;
+}
+
+.home-enter-3 {
+  animation: homeFadeUp 0.5s ease forwards;
+  animation-delay: 160ms;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-enter-1,
+  .home-enter-2,
+  .home-enter-3 {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

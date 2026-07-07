@@ -7,6 +7,7 @@ import { getAuthHeaders } from '@/lib/api-auth'
 import type { FinancialBalance, FinancialTransaction } from '@/lib/financial/types'
 import type { Profile, BudgetEntry } from '@/types'
 import { syncExpensesToBudget, formatSyncError } from '@/lib/financial/import-expenses'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 
 interface Props {
   profile: Profile
@@ -42,7 +43,7 @@ export default function FinverseCard({
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
-  const profileCurrency = profile.primary_currency || 'SGD'
+  const profileCurrency = getProfileDisplayCurrency(profile)
 
   const [connected, setConnected] = useState(false)
   const [institutionName, setInstitutionName] = useState<string | null>(null)

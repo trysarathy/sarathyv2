@@ -6,6 +6,7 @@ import { getAuthHeaders } from '@/lib/api-auth'
 import type { WiseBalance, WiseTransaction, WiseMode } from '@/lib/wise/types'
 import type { Profile, BudgetEntry } from '@/types'
 import { syncExpensesToBudget, formatSyncError } from '@/lib/wise/import-transactions'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 
 interface Props {
   profile: Profile
@@ -35,7 +36,7 @@ export default function WiseCard({
   showDetails = false,
 }: Props) {
   const supabase = createClient()
-  const profileCurrency = profile.primary_currency || 'SGD'
+  const profileCurrency = getProfileDisplayCurrency(profile)
 
   const [mode, setMode] = useState<WiseMode>('mock')
   const [balances, setBalances] = useState<WiseBalance[]>([])

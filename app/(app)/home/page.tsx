@@ -10,6 +10,8 @@ import {
   getMonthEntries,
 } from '@/lib/calculations'
 import { Profile, BudgetEntry, FixedSpending, SafeToSpendData, PLCategory } from '@/types'
+import { todayInSingapore } from '@/lib/sarathy/sgt'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import TabBar from '@/components/ui/TabBar'
 import MoodCheckIn from '@/components/home/MoodCheckIn'
 import LogExpenseSheet from '@/components/home/LogExpenseSheet'
@@ -42,7 +44,6 @@ export default function HomePage() {
     y: 0,
     xp: 0,
   })
-  const [showBriefGreeting, setShowBriefGreeting] = useState(false)
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -54,12 +55,16 @@ export default function HomePage() {
       supabase.from('fixed_spending').select('*').eq('user_id', user.id).eq('is_active', true),
     ])
 
+    if (entriesRes.error) {
+      console.error('Failed to load budget entries:', entriesRes.error.message)
+    }
+
     if (profileRes.data) {
       const p = profileRes.data as Profile
       if (!p.onboarding_complete) { router.replace('/onboarding'); return }
       setProfile(p)
 
-      const e = (entriesRes.data || []) as BudgetEntry[]
+      const e = (entriesRes.error ? [] : entriesRes.data || []) as BudgetEntry[]
       const f = (fixedRes.data || []) as FixedSpending[]
       setEntries(e)
       setFixedSpending(f)
@@ -81,8 +86,11 @@ export default function HomePage() {
     await loadData()
   }
 
+  const today = todayInSingapore()
+  const monthKey = today.slice(0, 7)
+
   const todaySpent = entries
-    .filter(e => e.entry_date === new Date().toISOString().split('T')[0])
+    .filter(e => e.entry_date === today)
     .reduce((sum, e) => sum + e.amount, 0)
 
   const meterPercent = safeData
@@ -92,57 +100,53 @@ export default function HomePage() {
   const meterColor = meterPercent < 70 ? '#10B981' : meterPercent < 90 ? '#F59E0B' : '#F43F5E'
 
   const monthTotal = entries
-    .filter(e => {
-      const d = new Date(e.entry_date)
-      const now = new Date()
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    })
+    .filter(e => e.entry_date.slice(0, 7) === monthKey)
     .reduce((sum, e) => sum + e.amount, 0)
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-cream flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-saffron border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-dvh bg-warm-white flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!profile || !safeData) return null
 
-  const currency = profile.primary_currency || 'SGD'
+  const currency = getProfileDisplayCurrency(profile)
+  const firstName = profile.name?.split(' ')[0]
 
   return (
-    <div className="min-h-dvh bg-cream pb-24">
+    <div className="min-h-dvh bg-warm-white pb-24">
       {xpFloat.show && (
         <div className="xp-float" style={{ left: xpFloat.x, top: xpFloat.y }}>
           +{xpFloat.xp} XP ⚡
         </div>
       )}
 
-      <div className="px-5 pt-12 pb-2">
-        <DailyBriefCard
-          key={`brief-${profile.monthly_savings_goal ?? 0}`}
-          onBriefLoaded={setShowBriefGreeting}
-        />
+      <div className="home-header-zone px-5 pt-12 pb-2">
+        <div className="home-enter-1">
+          <DailyBriefCard firstName={firstName} />
 
-        <SavingsGoalPrompt profile={profile} onUpdated={loadData} />
+          <SavingsGoalPrompt profile={profile} onUpdated={loadData} />
+        </div>
 
-        {!showBriefGreeting && (
-          <p className="text-ink-3 text-sm mb-3">Hey {profile.name?.split(' ')[0]} 👋</p>
-        )}
+        <div className="home-enter-2">
+          <SafeToSpendHero
+            profile={profile}
+            safeData={safeData}
+            todaySpent={todaySpent}
+            meterPercent={meterPercent}
+            meterColor={meterColor}
+            onTap={() => setShowTrust(true)}
+          />
+        </div>
 
-        <SafeToSpendHero
-          profile={profile}
-          safeData={safeData}
-          todaySpent={todaySpent}
-          meterPercent={meterPercent}
-          meterColor={meterColor}
-          onTap={() => setShowTrust(true)}
-        />
+        <div className="home-enter-3">
+          <HomeActionsRow onLogExpense={() => setShowLog(true)} />
 
-        <HomeActionsRow onLogExpense={() => setShowLog(true)} />
-
-        <MoodCheckIn userId={profile.id} variant="inline" />
+          <MoodCheckIn userId={profile.id} variant="inline" />
+        </div>
       </div>
 
       <div className="px-5">

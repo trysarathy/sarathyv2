@@ -2,13 +2,15 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/calculations'
+import { todayInSingapore } from '@/lib/sarathy/sgt'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import { CURRENCIES } from '@/components/ui/CurrencySelector'
 import { Profile } from '@/types'
 
 interface Props {
   profile: Profile
   onClose: () => void
-  onLogged: (xp: number, x: number, y: number) => void
+  onLogged: (xp: number, x: number, y: number) => void | Promise<void>
 }
 
 const CATEGORIES = [
@@ -32,32 +34,37 @@ const MOODS = [
 
 export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
   const supabase = createClient()
-  const profileCurrency = profile.primary_currency || 'SGD'
+  const profileCurrency = getProfileDisplayCurrency(profile)
 
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('Food')
   const [description, setDescription] = useState('')
   const [mood, setMood] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [currency, setCurrency] = useState(profileCurrency)
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false)
 
   const selectedCurrency = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0]
   const profileCurrencyData = CURRENCIES.find(c => c.code === profileCurrency) || CURRENCIES[0]
 
-  const handleSave = async (e: React.MouseEvent) => {
+  const handleSave = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!amount || parseFloat(amount) <= 0) return
     setSaving(true)
+    setSaveError('')
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setSaveError('You need to be signed in to log an expense.')
+        return
+      }
 
+      const entryDate = todayInSingapore()
       let finalAmount = parseFloat(amount)
       let originalAmount = finalAmount
       let originalCurrency = currency
 
-      // If logging in a different currency, convert to profile currency
       if (currency !== profileCurrency) {
         try {
           const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`)
@@ -71,36 +78,64 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
         }
       }
 
-      // Log mood if selected
       if (mood) {
-        await supabase.from('mood_logs').upsert({
-          user_id: user.id,
-          mood,
-          entry_date: new Date().toISOString().split('T')[0],
-        }, { onConflict: 'user_id,entry_date' })
+        const { error: moodError } = await supabase.from('mood_logs').upsert(
+          {
+            user_id: user.id,
+            mood,
+            entry_date: entryDate,
+          },
+          { onConflict: 'user_id,entry_date' }
+        )
+        if (moodError) {
+          console.warn('Mood log failed:', moodError.message)
+        }
       }
 
-      // Log expense
-      await supabase.from('budget_entries').insert({
+      const { error: insertError } = await supabase.from('budget_entries').insert({
         user_id: user.id,
         category,
         amount: finalAmount,
         original_amount: originalAmount,
         original_currency: originalCurrency,
         description: description || category,
-        entry_date: new Date().toISOString().split('T')[0],
+        entry_date: entryDate,
         logged_via: 'manual',
       })
 
-      // Award XP
-      const { data: p } = await supabase.from('profiles').select('total_xp').eq('id', user.id).single()
-      await supabase.from('profiles').update({ total_xp: (p?.total_xp || 0) + 10 }).eq('id', user.id)
+      if (insertError) {
+        setSaveError(insertError.message || 'Could not save this expense. Please try again.')
+        return
+      }
 
-      const rect = (e.target as HTMLElement).getBoundingClientRect()
-      onLogged(10, rect.left + rect.width / 2, rect.top)
+      const xpAward = 10
+      const { data: p, error: profileReadError } = await supabase
+        .from('profiles')
+        .select('total_xp')
+        .eq('id', user.id)
+        .single()
+
+      if (profileReadError) {
+        setSaveError('Expense saved, but XP could not be updated. Refresh the page.')
+        return
+      }
+
+      const { error: xpError } = await supabase
+        .from('profiles')
+        .update({ total_xp: (p?.total_xp || 0) + xpAward })
+        .eq('id', user.id)
+
+      if (xpError) {
+        setSaveError('Expense saved, but XP could not be updated. Refresh the page.')
+        return
+      }
+
+      const rect = e.currentTarget.getBoundingClientRect()
+      await onLogged(xpAward, rect.left + rect.width / 2, rect.top)
       onClose()
     } catch (err) {
       console.error(err)
+      setSaveError('Something went wrong saving this expense. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -218,7 +253,14 @@ export default function LogExpenseSheet({ profile, onClose, onLogged }: Props) {
           </div>
         </div>
 
+        {saveError && (
+          <div className="bg-red-50 text-danger text-sm px-3 py-2.5 rounded-xl mb-4">
+            {saveError}
+          </div>
+        )}
+
         <button
+          type="button"
           onClick={handleSave}
           className="btn-primary"
           disabled={saving || !amount || parseFloat(amount) <= 0}

@@ -20,11 +20,16 @@ interface Props {
   value: string
   onChange: (code: string) => void
   label?: string
+  /** Limit choices — e.g. life currencies only for profile primary. */
+  allowedCodes?: string[]
 }
 
-export default function CurrencySelector({ value, onChange, label }: Props) {
+export default function CurrencySelector({ value, onChange, label, allowedCodes }: Props) {
   const [open, setOpen] = useState(false)
-  const selected = CURRENCIES.find(c => c.code === value) || CURRENCIES[0]
+  const options = allowedCodes
+    ? CURRENCIES.filter(c => allowedCodes.includes(c.code))
+    : CURRENCIES
+  const selected = options.find(c => c.code === value) || options[0] || CURRENCIES[0]
 
   return (
     <div className="relative">
@@ -47,7 +52,7 @@ export default function CurrencySelector({ value, onChange, label }: Props) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl z-50 max-h-72 overflow-y-auto border border-cream-3">
-            {CURRENCIES.map(c => (
+            {options.map(c => (
               <button
                 key={c.code}
                 onClick={() => { onChange(c.code); setOpen(false) }}

@@ -44,15 +44,29 @@ export async function convertToProfileCurrency(
   profileCurrency: string
 ): Promise<number> {
   if (fromCurrency === profileCurrency) return amount
-  try {
-    const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${fromCurrency}`)
-    const data = await res.json()
-    const rate = data.rates?.[profileCurrency]
-    if (rate) return parseFloat((amount * rate).toFixed(2))
-  } catch {
-    // fall through
+
+  const tryConvert = async (base: string, target: string): Promise<number | null> => {
+    try {
+      const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${base}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      const rate = data.rates?.[target]
+      if (typeof rate === 'number' && rate > 0) {
+        return parseFloat((amount * rate).toFixed(2))
+      }
+    } catch {
+      // try reverse base next
+    }
+    return null
   }
-  return amount
+
+  const direct = await tryConvert(fromCurrency, profileCurrency)
+  if (direct != null) return direct
+
+  const reverse = await tryConvert(profileCurrency, fromCurrency)
+  if (reverse != null) return parseFloat((amount / reverse).toFixed(2))
+
+  throw new Error(`Could not convert ${fromCurrency} to ${profileCurrency}`)
 }
 
 export function inferCategory(description: string): string {
@@ -92,23 +106,38 @@ export async function syncExpensesToBudget(params: {
 }): Promise<SyncExpensesResult> {
   const { supabase, userId, profileCurrency, transactions, existingEntries, loggedVia } = params
 
-  const convertedAmounts = await Promise.all(
-    transactions.map(tx =>
-      convertToProfileCurrency(tx.amount, tx.currency, profileCurrency)
-    )
-  )
+  const convertedAmounts: number[] = []
+  const conversionErrors: string[] = []
+
+  for (const tx of transactions) {
+    try {
+      convertedAmounts.push(
+        await convertToProfileCurrency(tx.amount, tx.currency, profileCurrency)
+      )
+    } catch {
+      conversionErrors.push(`${tx.description} (${tx.currency})`)
+      convertedAmounts.push(NaN)
+    }
+  }
+
+  const convertible = transactions.filter((_, i) => !Number.isNaN(convertedAmounts[i]))
+  const convertibleAmounts = convertedAmounts.filter(a => !Number.isNaN(a))
 
   const { toImport, skipped } = filterNewTransactions(
-    transactions,
+    convertible,
     existingEntries,
-    convertedAmounts
+    convertibleAmounts
   )
 
   if (!toImport.length) {
+    const fxNote =
+      conversionErrors.length > 0
+        ? ` · ${conversionErrors.length} skipped (FX conversion failed)`
+        : ''
     return {
       imported: 0,
-      skipped,
-      message: `All ${skipped} transaction${skipped === 1 ? '' : 's'} already synced`,
+      skipped: skipped + conversionErrors.length,
+      message: `All ${skipped + conversionErrors.length} transaction${skipped + conversionErrors.length === 1 ? '' : 's'} already synced or skipped${fxNote}`,
     }
   }
 
@@ -116,6 +145,8 @@ export async function syncExpensesToBudget(params: {
     user_id: userId,
     category: inferCategory(tx.description),
     amount: finalAmount,
+    original_amount: tx.currency !== profileCurrency ? tx.amount : null,
+    original_currency: tx.currency !== profileCurrency ? tx.currency : null,
     description: tx.description,
     entry_date: tx.date,
     logged_via: loggedVia,
@@ -125,9 +156,11 @@ export async function syncExpensesToBudget(params: {
   if (insertError) throw insertError
 
   const imported = rows.length
+  const fxNote =
+    conversionErrors.length > 0 ? ` · ${conversionErrors.length} skipped (FX failed)` : ''
   return {
     imported,
-    skipped,
-    message: `Synced ${imported} transaction${imported === 1 ? '' : 's'}${skipped ? ` · ${skipped} skipped as duplicates` : ''}`,
+    skipped: skipped + conversionErrors.length,
+    message: `Synced ${imported} transaction${imported === 1 ? '' : 's'}${skipped ? ` · ${skipped} skipped as duplicates` : ''}${fxNote}`,
   }
 }

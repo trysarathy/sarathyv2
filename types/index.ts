@@ -5,6 +5,7 @@ export interface Profile {
   current_country: string | null
   user_types: string[]
   primary_currency: string
+  secondary_currency?: string | null
   language_preference: string | null
   planning_amount: number | null
   total_money: number | null

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Profile } from '@/types'
 import { getLevelName, formatCurrency } from '@/lib/calculations'
+import { getProfileDisplayCurrency, LIFE_CURRENCIES } from '@/lib/home/display-currency'
 import { saveMonthlySavingsGoal } from '@/lib/savings-goal'
 import TabBar from '@/components/ui/TabBar'
 import CurrencySelector from '@/components/ui/CurrencySelector'
@@ -135,8 +136,9 @@ export default function ProfilePage() {
           💱 Primary currency
         </p>
         <CurrencySelector
-          value={profile.primary_currency || 'SGD'}
+          value={getProfileDisplayCurrency(profile)}
           onChange={handleCurrencyChange}
+          allowedCodes={[...LIFE_CURRENCIES]}
         />
         <p className="text-xs text-ink-3 mt-2">
           Your safe-to-spend and all expenses display in this currency. You can log in any currency and we convert automatically.
