@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import {
@@ -35,6 +35,7 @@ export default function HomePage() {
   const [categories, setCategories] = useState<PLCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [logMode, setLogMode] = useState<'manual' | 'voice' | null>(null)
+  const heroAnchorRef = useRef<HTMLDivElement>(null)
   const [showTrust, setShowTrust] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<PLCategory | null>(null)
@@ -80,9 +81,24 @@ export default function HomePage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const handleExpenseLogged = async (xp: number, eventX: number, eventY: number) => {
-    setXpFloat({ show: true, x: eventX, y: eventY, xp })
-    setTimeout(() => setXpFloat({ show: false, x: 0, y: 0, xp: 0 }), 1200)
+  const handleExpenseLogged = async (xp: number, coords?: { x: number; y: number }) => {
+    let x = coords?.x
+    let y = coords?.y
+
+    if (x == null || y == null) {
+      const hero = heroAnchorRef.current
+      if (hero) {
+        const rect = hero.getBoundingClientRect()
+        x = rect.left + rect.width / 2
+        y = rect.top + rect.height * 0.35
+      }
+    }
+
+    if (x != null && y != null) {
+      setXpFloat({ show: true, x, y, xp })
+      setTimeout(() => setXpFloat({ show: false, x: 0, y: 0, xp: 0 }), 1200)
+    }
+
     await loadData()
   }
 
@@ -131,7 +147,7 @@ export default function HomePage() {
           <SavingsGoalPrompt profile={profile} onUpdated={loadData} />
         </div>
 
-        <div className="home-enter-2">
+        <div ref={heroAnchorRef} className="home-enter-2">
           <SafeToSpendHero
             profile={profile}
             safeData={safeData}

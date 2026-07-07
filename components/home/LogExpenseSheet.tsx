@@ -14,9 +14,15 @@ import { Profile } from '@/types'
 interface Props {
   profile: Profile
   onClose: () => void
-  onLogged: (xp: number, x: number, y: number) => void | Promise<void>
+  onLogged: (xp: number, coords?: { x: number; y: number }) => void | Promise<void>
   /** Open sheet already listening (home mic entry). */
   startInListeningMode?: boolean
+}
+
+function xpFloatCoords(el: HTMLElement | null): { x: number; y: number } | undefined {
+  if (!el) return undefined
+  const rect = el.getBoundingClientRect()
+  return { x: rect.left + rect.width / 2, y: rect.top }
 }
 
 const CATEGORIES = EXPENSE_CATEGORIES.map(value => ({
@@ -69,6 +75,7 @@ export default function LogExpenseSheet({
   const autoStartedRef = useRef(false)
   const wasListeningRef = useRef(false)
   const parsingRef = useRef(false)
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   const selectedCurrency = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0]
   const profileCurrencyData = CURRENCIES.find(c => c.code === profileCurrency) || CURRENCIES[0]
@@ -149,7 +156,7 @@ export default function LogExpenseSheet({
     }
   }, [abortListening])
 
-  const handleSave = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSave = async () => {
     if (!amount || parseFloat(amount) <= 0) return
     setSaving(true)
     setSaveError('')
@@ -231,8 +238,7 @@ export default function LogExpenseSheet({
         return
       }
 
-      const rect = e.currentTarget.getBoundingClientRect()
-      await onLogged(xpAward, rect.left + rect.width / 2, rect.top)
+      await onLogged(xpAward, xpFloatCoords(saveButtonRef.current))
       onClose()
     } catch (err) {
       console.error(err)
@@ -403,6 +409,7 @@ export default function LogExpenseSheet({
 
         <button
           type="button"
+          ref={saveButtonRef}
           onClick={handleSave}
           className="btn-primary"
           disabled={saving || !amount || parseFloat(amount) <= 0}
