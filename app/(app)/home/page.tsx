@@ -36,7 +36,12 @@ export default function HomePage() {
   const [showTrust, setShowTrust] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<PLCategory | null>(null)
-  const [xpFloat, setXpFloat] = useState<{ show: boolean; x: number; y: number }>({ show: false, x: 0, y: 0 })
+  const [xpFloat, setXpFloat] = useState<{ show: boolean; x: number; y: number; xp: number }>({
+    show: false,
+    x: 0,
+    y: 0,
+    xp: 0,
+  })
   const [showBriefGreeting, setShowBriefGreeting] = useState(false)
 
   const loadData = useCallback(async () => {
@@ -70,9 +75,9 @@ export default function HomePage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const handleExpenseLogged = async (_xp: number, eventX: number, eventY: number) => {
-    setXpFloat({ show: true, x: eventX, y: eventY })
-    setTimeout(() => setXpFloat({ show: false, x: 0, y: 0 }), 1200)
+  const handleExpenseLogged = async (xp: number, eventX: number, eventY: number) => {
+    setXpFloat({ show: true, x: eventX, y: eventY, xp })
+    setTimeout(() => setXpFloat({ show: false, x: 0, y: 0, xp: 0 }), 1200)
     await loadData()
   }
 
@@ -110,7 +115,7 @@ export default function HomePage() {
     <div className="min-h-dvh bg-cream pb-24">
       {xpFloat.show && (
         <div className="xp-float" style={{ left: xpFloat.x, top: xpFloat.y }}>
-          +10 XP ⚡
+          +{xpFloat.xp} XP ⚡
         </div>
       )}
 
