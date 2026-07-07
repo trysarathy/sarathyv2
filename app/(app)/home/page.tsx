@@ -34,7 +34,7 @@ export default function HomePage() {
   const [safeData, setSafeData] = useState<SafeToSpendData | null>(null)
   const [categories, setCategories] = useState<PLCategory[]>([])
   const [loading, setLoading] = useState(true)
-  const [showLog, setShowLog] = useState(false)
+  const [logMode, setLogMode] = useState<'manual' | 'voice' | null>(null)
   const [showTrust, setShowTrust] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<PLCategory | null>(null)
@@ -143,7 +143,10 @@ export default function HomePage() {
         </div>
 
         <div className="home-enter-3">
-          <HomeActionsRow onLogExpense={() => setShowLog(true)} />
+          <HomeActionsRow
+            onLogExpense={() => setLogMode('manual')}
+            onVoiceLog={() => setLogMode('voice')}
+          />
 
           <MoodCheckIn userId={profile.id} variant="inline" />
         </div>
@@ -204,11 +207,12 @@ export default function HomePage() {
         </>
       )}
 
-      {showLog && (
+      {logMode && (
         <LogExpenseSheet
           profile={profile}
-          onClose={() => setShowLog(false)}
+          onClose={() => setLogMode(null)}
           onLogged={handleExpenseLogged}
+          startInListeningMode={logMode === 'voice'}
         />
       )}
 

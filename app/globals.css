@@ -310,4 +310,27 @@
     opacity: 1;
     transform: none;
   }
+
+  .voice-mic-pulse,
+  .voice-prefill-flash {
+    animation: none;
+  }
+}
+
+@keyframes voiceMicPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(249, 97, 103, 0.45); }
+  50% { box-shadow: 0 0 0 10px rgba(249, 97, 103, 0); }
+}
+
+.voice-mic-pulse {
+  animation: voiceMicPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes voicePrefillHighlight {
+  0% { background-color: rgba(249, 97, 103, 0.22); }
+  100% { background-color: transparent; }
+}
+
+.voice-prefill-flash {
+  animation: voicePrefillHighlight 1.2s ease-out;
 }
