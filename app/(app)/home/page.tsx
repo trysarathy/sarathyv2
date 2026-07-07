@@ -1,6 +1,5 @@
 'use client'
-import { Suspense, useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import {
@@ -15,10 +14,13 @@ import TabBar from '@/components/ui/TabBar'
 import MoodCheckIn from '@/components/home/MoodCheckIn'
 import LogExpenseSheet from '@/components/home/LogExpenseSheet'
 import TrustLayerModal from '@/components/home/TrustLayerModal'
-import WiseCard from '@/components/home/WiseCard'
-import FinverseCard from '@/components/home/FinverseCard'
 import DailyBriefCard from '@/components/home/DailyBriefCard'
 import SavingsGoalPrompt from '@/components/home/SavingsGoalPrompt'
+import SafeToSpendHero from '@/components/home/SafeToSpendHero'
+import HomeActionsRow from '@/components/home/HomeActionsRow'
+import ConnectedAccountsStrip from '@/components/home/ConnectedAccountsStrip'
+import ExploreGrid from '@/components/home/ExploreGrid'
+import MonthSummarySheet from '@/components/home/MonthSummarySheet'
 
 export default function HomePage() {
   const router = useRouter()
@@ -32,6 +34,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [showLog, setShowLog] = useState(false)
   const [showTrust, setShowTrust] = useState(false)
+  const [showMonth, setShowMonth] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<PLCategory | null>(null)
   const [xpFloat, setXpFloat] = useState<{ show: boolean; x: number; y: number }>({ show: false, x: 0, y: 0 })
   const [showBriefGreeting, setShowBriefGreeting] = useState(false)
@@ -67,7 +70,7 @@ export default function HomePage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const handleExpenseLogged = async (xp: number, eventX: number, eventY: number) => {
+  const handleExpenseLogged = async (_xp: number, eventX: number, eventY: number) => {
     setXpFloat({ show: true, x: eventX, y: eventY })
     setTimeout(() => setXpFloat({ show: false, x: 0, y: 0 }), 1200)
     await loadData()
@@ -104,17 +107,14 @@ export default function HomePage() {
   const currency = profile.primary_currency || 'SGD'
 
   return (
-    <div className="min-h-dvh bg-cream pb-40">
-
-      {/* XP Float */}
+    <div className="min-h-dvh bg-cream pb-24">
       {xpFloat.show && (
         <div className="xp-float" style={{ left: xpFloat.x, top: xpFloat.y }}>
           +10 XP ⚡
         </div>
       )}
 
-      {/* Header */}
-      <div className="px-5 pt-12 pb-4">
+      <div className="px-5 pt-12 pb-2">
         <DailyBriefCard
           key={`brief-${profile.monthly_savings_goal ?? 0}`}
           onBriefLoaded={setShowBriefGreeting}
@@ -122,138 +122,48 @@ export default function HomePage() {
 
         <SavingsGoalPrompt profile={profile} onUpdated={loadData} />
 
-        <div className={`flex items-center mb-1 ${showBriefGreeting ? 'justify-end' : 'justify-between'}`}>
-          {!showBriefGreeting && (
-            <p className="text-ink-3 text-sm">Hey {profile.name?.split(' ')[0]} 👋</p>
-          )}
-          <div className="flex items-center gap-1.5 text-xs text-ink-3">
-            <span>🔥</span>
-            <span className="font-medium">{profile.daily_login_streak}d</span>
-            <span className="ml-2">⚡ {profile.total_xp} XP</span>
-          </div>
-        </div>
+        {!showBriefGreeting && (
+          <p className="text-ink-3 text-sm mb-3">Hey {profile.name?.split(' ')[0]} 👋</p>
+        )}
 
-        {/* Safety line */}
-        <p className={`font-fraunces text-lg font-medium mb-5 ${
-          safeData.status === 'safe' ? 'text-safe' :
-          safeData.status === 'tight' ? 'text-warning' : 'text-danger'
-        }`}>
-          {safeData.safetyLine}
-        </p>
+        <SafeToSpendHero
+          profile={profile}
+          safeData={safeData}
+          todaySpent={todaySpent}
+          meterPercent={meterPercent}
+          meterColor={meterColor}
+          onTap={() => setShowTrust(true)}
+        />
 
-        {/* Safe-to-spend hero */}
-        <button
-          onClick={() => setShowTrust(true)}
-          className="w-full bg-white rounded-2xl p-5 shadow-sm text-left active:scale-[0.98] transition-transform"
-        >
-          <p className="text-ink-3 text-xs font-medium uppercase tracking-wide mb-1">
-            Safe to spend today
-          </p>
-          <p className={`safe-number ${
-            safeData.status === 'safe' ? 'text-safe' :
-            safeData.status === 'tight' ? 'text-warning' : 'text-danger'
-          }`}>
-            {formatCurrency(safeData.safeToSpend, currency)}
-          </p>
-          {safeData.savings.status === 'protected' && (
-            <p className="text-safe text-xs font-medium mt-2">
-              🛡️ {formatCurrency(safeData.savings.monthlyGoal, currency)} savings protected this month
-            </p>
-          )}
-          {safeData.savings.status === 'at_risk' && safeData.savings.stillPossible !== null && (
-            <p className="text-warning text-xs font-medium mt-2">
-              ⚠️ {formatCurrency(safeData.savings.stillPossible, currency)} of your{' '}
-              {formatCurrency(safeData.savings.monthlyGoal, currency)} savings goal still possible
-            </p>
-          )}
-          <p className="text-ink-3 text-xs mt-2">Tap to see how I calculated this →</p>
-        </button>
+        <HomeActionsRow onLogExpense={() => setShowLog(true)} />
 
-        {/* Spending meter */}
-        <div className="bg-white rounded-2xl p-4 mt-3 shadow-sm">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-xs font-medium text-ink-3">Today's spending</p>
-            <p className="text-xs font-medium text-ink">
-              {formatCurrency(todaySpent, currency)} of {formatCurrency(safeData.safeToSpend, currency)}
-            </p>
-          </div>
-          <div className="meter-bar">
-            <div
-              className="meter-fill"
-              style={{ width: `${meterPercent}%`, background: meterColor }}
-            />
-          </div>
-          <p className={`text-xs mt-2 font-medium ${
-            meterPercent < 70 ? 'text-safe' :
-            meterPercent < 90 ? 'text-warning' : 'text-danger'
-          }`}>
-            {meterPercent < 70 ? 'On track 🟢' :
-             meterPercent < 90 ? 'A little over 🟡' : 'Over budget today 🔴'}
-          </p>
-        </div>
+        <MoodCheckIn userId={profile.id} variant="inline" />
       </div>
 
-      {/* P&L Table */}
-      <div className="px-5 mb-4">
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-cream-3">
-            <p className="text-xs font-semibold text-ink-3 uppercase tracking-wide">This month</p>
-          </div>
-
-          {profile.planning_amount && (
-            <div className="flex items-center justify-between px-4 py-3 border-b border-cream">
-              <div className="flex items-center gap-2">
-                <span className="text-base">💰</span>
-                <span className="text-sm font-medium text-ink">Income / Budget</span>
-              </div>
-              <span className="text-sm font-semibold text-safe">
-                +{formatCurrency(profile.planning_amount, currency)}
-              </span>
-            </div>
-          )}
-
-          {categories.length === 0 ? (
-            <div className="px-4 py-6 text-center text-ink-3 text-sm">
-              No expenses yet this month — log your first one below 👇
-            </div>
-          ) : (
-            categories.map(cat => (
-              <button
-                key={cat.category}
-                onClick={() => setSelectedCategory(cat)}
-                className="w-full flex items-center justify-between px-4 py-3 border-b border-cream last:border-0 active:bg-cream transition-colors text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">{getCategoryEmoji(cat.category)}</span>
-                  <div>
-                    <span className="text-sm font-medium text-ink">{cat.category}</span>
-                    <span className="text-xs text-ink-3 ml-2">{cat.percentage}%</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-ink">
-                    {formatCurrency(cat.total, currency)}
-                  </span>
-                  <span className="text-ink-3 text-xs">→</span>
-                </div>
-              </button>
-            ))
-          )}
-
-          {profile.planning_amount && (
-            <div className="flex items-center justify-between px-4 py-3 bg-cream border-t border-cream-3">
-              <span className="text-sm font-semibold text-ink">Balance</span>
-              <span className={`text-sm font-bold ${
-                (profile.planning_amount - monthTotal) >= 0 ? 'text-safe' : 'text-danger'
-              }`}>
-                {formatCurrency(profile.planning_amount - monthTotal, currency)}
-              </span>
-            </div>
-          )}
-        </div>
+      <div className="px-5">
+        <ConnectedAccountsStrip
+          profile={profile}
+          existingEntries={entries}
+          onSynced={loadData}
+        />
       </div>
 
-      {/* Category Drill-down Modal */}
+      <ExploreGrid onOpenMonth={() => setShowMonth(true)} />
+
+      {showMonth && (
+        <MonthSummarySheet
+          profile={profile}
+          categories={categories}
+          monthTotal={monthTotal}
+          currency={currency}
+          onSelectCategory={(cat) => {
+            setShowMonth(false)
+            setSelectedCategory(cat)
+          }}
+          onClose={() => setShowMonth(false)}
+        />
+      )}
+
       {selectedCategory && (
         <>
           <div className="overlay" onClick={() => setSelectedCategory(null)} />
@@ -266,14 +176,16 @@ export default function HomePage() {
                   <p className="text-ink-3 text-xs">{formatCurrency(selectedCategory.total, currency)} total</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedCategory(null)} className="text-ink-3 text-2xl">×</button>
+              <button type="button" onClick={() => setSelectedCategory(null)} className="text-ink-3 text-2xl">×</button>
             </div>
             <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
               {selectedCategory.entries.map(entry => (
                 <div key={entry.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0">
                   <div>
                     <p className="text-sm font-medium text-ink">{entry.description || entry.category}</p>
-                    <p className="text-xs text-ink-3">{new Date(entry.entry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}</p>
+                    <p className="text-xs text-ink-3">
+                      {new Date(entry.entry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
+                    </p>
                   </div>
                   <span className="text-sm font-semibold text-ink">{formatCurrency(entry.amount, currency)}</span>
                 </div>
@@ -282,153 +194,6 @@ export default function HomePage() {
           </div>
         </>
       )}
-
-      {/* Mood check-in */}
-      <div className="px-5 mb-4">
-        <MoodCheckIn userId={profile.id} />
-      </div>
-
-      {/* Wise integration */}
-      <div className="px-5 mb-4">
-        <WiseCard
-          profile={profile}
-          existingEntries={entries}
-          onSynced={loadData}
-        />
-      </div>
-
-      {/* Finverse bank linking */}
-      <div className="px-5 mb-4">
-        <Suspense
-          fallback={
-            <div className="card border-l-4 border-indigo-500 flex items-center gap-2 py-4 px-4">
-              <div className="w-5 h-5 border-2 border-saffron border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-ink-3">Loading bank…</p>
-            </div>
-          }
-        >
-          <FinverseCard
-            profile={profile}
-            existingEntries={entries}
-            onSynced={loadData}
-          />
-        </Suspense>
-      </div>
-
-      {/* Quick links — all features */}
-      <div className="relative z-10 px-5 mb-4 flex flex-col gap-3">
-
-        <Link href="/check" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">🤔</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Money check</p>
-              <p className="text-ink-3 text-xs">Can I afford this? · Impulse · What if</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/biases" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">🧠</span>
-            <div>
-              <p className="font-medium text-ink text-sm">My money psychology</p>
-              <p className="text-ink-3 text-xs">Emotional spending · Present bias · Avoidance</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/future" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">🔮</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Future you</p>
-              <p className="text-ink-3 text-xs">3 scenarios · 6 months from now</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/insights" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">🧬</span>
-            <div>
-              <p className="font-medium text-ink text-sm">My financial DNA</p>
-              <p className="text-ink-3 text-xs">What your data says about you</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/mydata" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">📊</span>
-            <div>
-              <p className="font-medium text-ink text-sm">My data</p>
-              <p className="text-ink-3 text-xs">Your profile · Behaviour · Benchmarks</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/remittance" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">💸</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Send money home</p>
-              <p className="text-ink-3 text-xs">SGD → INR · Live rate · Best provider</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/marketplace" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">🏪</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Built for you</p>
-              <p className="text-ink-3 text-xs">Wise · StashAway · Student accounts</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/upload" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">📄</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Import transactions</p>
-              <p className="text-ink-3 text-xs">Bank statement · receipt scan</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-        <Link href="/fixed" className="card flex items-center justify-between active:opacity-70">
-          <div className="flex items-center gap-3">
-            <span className="text-xl">💳</span>
-            <div>
-              <p className="font-medium text-ink text-sm">Fixed costs</p>
-              <p className="text-ink-3 text-xs">Rent, subscriptions, bills</p>
-            </div>
-          </div>
-          <span className="text-ink-3">→</span>
-        </Link>
-
-      </div>
-
-      {/* Log Expense Button — pointer-events-none on wrapper so taps reach cards below */}
-      <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
-        <button
-          onClick={() => setShowLog(true)}
-          className="btn-primary shadow-lg pointer-events-auto"
-          style={{ boxShadow: '0 4px 20px rgba(249,115,22,0.4)' }}
-        >
-          + Log expense
-        </button>
-      </div>
 
       {showLog && (
         <LogExpenseSheet

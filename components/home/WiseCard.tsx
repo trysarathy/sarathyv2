@@ -11,15 +11,29 @@ interface Props {
   profile: Profile
   existingEntries: BudgetEntry[]
   onSynced: () => void
+  variant?: 'full' | 'compact'
+  showDetails?: boolean
 }
 
 function formatBalance(amount: number, currency: string): string {
-  if (currency === 'SGD') return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (currency === 'SGD') return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
   if (currency === 'INR') return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
-  return `${currency} ${amount.toFixed(2)}`
+  return `${currency} ${amount.toFixed(0)}`
 }
 
-export default function WiseCard({ profile, existingEntries, onSynced }: Props) {
+function primaryBalance(balances: WiseBalance[], profileCurrency: string): string | null {
+  if (balances.length === 0) return null
+  const match = balances.find((b) => b.currency === profileCurrency) ?? balances[0]
+  return formatBalance(match.amount, match.currency)
+}
+
+export default function WiseCard({
+  profile,
+  existingEntries,
+  onSynced,
+  variant = 'full',
+  showDetails = false,
+}: Props) {
   const supabase = createClient()
   const profileCurrency = profile.primary_currency || 'SGD'
 
@@ -81,6 +95,68 @@ export default function WiseCard({ profile, existingEntries, onSynced }: Props) 
     }
   }
 
+  const balanceLabel = loading
+    ? '…'
+    : primaryBalance(balances, profileCurrency) ?? (error ? '—' : '—')
+
+  if (variant === 'compact') {
+    return (
+      <div className="border-t border-cream first:border-0 pt-2 first:pt-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 text-sm">
+            <span>💚</span>
+            <span className="font-medium text-ink shrink-0">Wise</span>
+            <span className="text-ink-3 truncate">{balanceLabel}</span>
+            {mode === 'mock' && !loading && (
+              <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 shrink-0">
+                Demo
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={syncing || loading || !transactions.length}
+            className="text-xs font-semibold text-saffron px-2.5 py-1 rounded-lg bg-saffron-soft disabled:opacity-40 shrink-0"
+          >
+            {syncing ? '…' : 'Sync'}
+          </button>
+        </div>
+
+        {showDetails && (
+          <div className="mt-3 pt-2 border-t border-cream">
+            {error && !balances.length && (
+              <p className="text-xs text-danger mb-2">{error}</p>
+            )}
+            {balances.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                {balances.map((b) => (
+                  <div key={b.currency} className="bg-cream rounded-lg p-2">
+                    <p className="text-[10px] text-ink-3">{b.currency}</p>
+                    <p className="font-fraunces text-sm font-semibold text-ink">
+                      {formatBalance(b.amount, b.currency)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {transactions.length > 0 && (
+              <p className="text-[11px] text-ink-3 mb-2">
+                {transactions.length} ready to import
+              </p>
+            )}
+            {syncMessage && (
+              <p className="text-xs text-safe mb-2">{syncMessage}</p>
+            )}
+            {error && balances.length > 0 && (
+              <p className="text-xs text-danger mb-2">{error}</p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="card border-l-4 border-green-500">
       <div className="flex items-start justify-between mb-3">
@@ -107,7 +183,7 @@ export default function WiseCard({ profile, existingEntries, onSynced }: Props) 
         <p className="text-sm text-danger mb-3">{error}</p>
       ) : (
         <div className="grid grid-cols-2 gap-3 mb-4">
-          {balances.map(b => (
+          {balances.map((b) => (
             <div key={b.currency} className="bg-cream rounded-xl p-3">
               <p className="text-xs text-ink-3 mb-0.5">{b.currency}</p>
               <p className="font-fraunces text-lg font-semibold text-ink">

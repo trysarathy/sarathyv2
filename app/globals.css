@@ -43,6 +43,14 @@
     letter-spacing: -0.02em;
   }
 
+  .safe-number-hero {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 4.25rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
   .card {
     background: white;
     border-radius: 16px;

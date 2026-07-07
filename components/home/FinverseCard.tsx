@@ -12,19 +12,33 @@ interface Props {
   profile: Profile
   existingEntries: BudgetEntry[]
   onSynced: () => void
+  variant?: 'full' | 'compact'
+  showDetails?: boolean
 }
 
 function formatBalance(amount: number, currency: string): string {
   if (currency === 'SGD') {
-    return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
   }
   if (currency === 'INR') {
     return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
   }
-  return `${currency} ${amount.toFixed(2)}`
+  return `${currency} ${amount.toFixed(0)}`
 }
 
-export default function FinverseCard({ profile, existingEntries, onSynced }: Props) {
+function primaryBalance(balances: FinancialBalance[], profileCurrency: string): string | null {
+  if (balances.length === 0) return null
+  const match = balances.find((b) => b.currency === profileCurrency) ?? balances[0]
+  return formatBalance(match.amount, match.currency)
+}
+
+export default function FinverseCard({
+  profile,
+  existingEntries,
+  onSynced,
+  variant = 'full',
+  showDetails = false,
+}: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -144,6 +158,75 @@ export default function FinverseCard({ profile, existingEntries, onSynced }: Pro
     }
   }
 
+  const bankLabel = loading
+    ? '…'
+    : connected
+      ? `${institutionName ?? 'Bank'} · ${primaryBalance(balances, profileCurrency) ?? '—'}`
+      : 'Not connected'
+
+  if (variant === 'compact') {
+    return (
+      <div className="border-t border-cream pt-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 text-sm">
+            <span>🏦</span>
+            <span className="font-medium text-ink shrink-0">Bank</span>
+            <span className="text-ink-3 truncate">{bankLabel}</span>
+          </div>
+          {connected ? (
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={syncing || loading || !transactions.length}
+              className="text-xs font-semibold text-saffron px-2.5 py-1 rounded-lg bg-saffron-soft disabled:opacity-40 shrink-0"
+            >
+              {syncing ? '…' : 'Sync'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleConnect}
+              disabled={connecting || loading}
+              className="text-xs font-semibold text-saffron px-2.5 py-1 rounded-lg bg-saffron-soft disabled:opacity-40 shrink-0"
+            >
+              {connecting ? '…' : 'Connect'}
+            </button>
+          )}
+        </div>
+
+        {showDetails && (
+          <div className="mt-3 pt-2 border-t border-cream">
+            {linkBanner && <p className="text-xs text-safe mb-2">{linkBanner}</p>}
+            {error && <p className="text-xs text-danger mb-2">{error}</p>}
+            {connected && balances.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                {balances.map((b) => (
+                  <div key={b.currency} className="bg-cream rounded-lg p-2">
+                    <p className="text-[10px] text-ink-3">{b.currency}</p>
+                    <p className="font-fraunces text-sm font-semibold text-ink">
+                      {formatBalance(b.amount, b.currency)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {connected && transactions.length > 0 && (
+              <p className="text-[11px] text-ink-3 mb-2">
+                {transactions.length} ready to import
+              </p>
+            )}
+            {syncMessage && <p className="text-xs text-safe mb-2">{syncMessage}</p>}
+            {!connected && (
+              <p className="text-[11px] text-ink-3">
+                Link your bank to import balances and transactions.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="card border-l-4 border-indigo-500">
       <div className="flex items-start justify-between mb-3">
@@ -196,7 +279,7 @@ export default function FinverseCard({ profile, existingEntries, onSynced }: Pro
               {balances.length === 0 ? (
                 <p className="text-sm text-ink-3 col-span-2">No balances available yet</p>
               ) : (
-                balances.map(b => (
+                balances.map((b) => (
                   <div key={b.currency} className="bg-cream rounded-xl p-3">
                     <p className="text-xs text-ink-3 mb-0.5">{b.currency}</p>
                     <p className="font-fraunces text-lg font-semibold text-ink">
