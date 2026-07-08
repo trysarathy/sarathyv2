@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/lib/calculations'
+import { formatDreamContextLine } from '@/lib/dream-goal'
 import type { CompanionContext, RecentNotable } from './types'
 
 function formatNotable(notable: RecentNotable, currency: string): string {
@@ -48,7 +49,14 @@ function formatSync(ctx: CompanionContext): string {
 
 function formatSavings(ctx: CompanionContext, currency: string): string | null {
   const { savings } = ctx.today
-  if (savings.monthlyGoal <= 0) return null
+  if (savings.monthlyGoal <= 0 && !savings.dream?.targetAmount) return null
+
+  const dreamLine =
+    savings.dream?.targetAmount && savings.dream.targetDate
+      ? formatDreamContextLine(savings.dream, currency)
+      : null
+  if (dreamLine) return dreamLine
+
   const namePrefix = savings.goalName ? `${savings.goalName}: ` : ''
   const amount = formatCurrency(savings.monthlyGoal, currency)
   if (savings.status === 'protected') {

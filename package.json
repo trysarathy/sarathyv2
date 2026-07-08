@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "verify:safe-to-spend": "npx tsx scripts/verify-safe-to-spend-refactor.ts"
   },
   "dependencies": {
     "@finverse/sdk-typescript": "^0.0.397",

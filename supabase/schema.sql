@@ -8,7 +8,7 @@
 -- → triggers → RLS). Existing projects: use individual ALTER statements instead
 -- of CREATE TABLE when tables already exist.
 --
--- Last updated: 2026-07-08 (goal_name on profiles for named savings goals)
+-- Last updated: 2026-07-08 (dream target + progress ledger on profiles)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -51,6 +51,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   monthly_savings_goal numeric NOT NULL DEFAULT 0 CHECK (monthly_savings_goal >= 0),
   savings_goal_prompt_dismissed boolean NOT NULL DEFAULT false,
   goal_name text,
+  goal_target_amount numeric CHECK (goal_target_amount IS NULL OR goal_target_amount >= 0),
+  goal_target_date date,
+  goal_saved_amount numeric NOT NULL DEFAULT 0 CHECK (goal_saved_amount >= 0),
+  goal_progress_through_month text,
+  goal_started_at date,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -59,6 +64,11 @@ COMMENT ON COLUMN public.profiles.secondary_currency IS 'Used by future/page.tsx
 COMMENT ON COLUMN public.profiles.monthly_savings_goal IS 'Monthly amount reserved before safe-to-spend; 0 = disabled';
 COMMENT ON COLUMN public.profiles.savings_goal_prompt_dismissed IS 'Home savings prompt dismissed; also true when user sets a goal';
 COMMENT ON COLUMN public.profiles.goal_name IS 'Optional name for monthly_savings_goal (e.g. Bali fund)';
+COMMENT ON COLUMN public.profiles.goal_target_amount IS 'Optional total dream target';
+COMMENT ON COLUMN public.profiles.goal_target_date IS 'Optional dream deadline';
+COMMENT ON COLUMN public.profiles.goal_saved_amount IS 'Running total from finalized protected months';
+COMMENT ON COLUMN public.profiles.goal_progress_through_month IS 'YYYY-MM last month finalized into goal_saved_amount';
+COMMENT ON COLUMN public.profiles.goal_started_at IS 'First month dream savings tracking applies';
 
 -- -----------------------------------------------------------------------------
 -- budget_entries
@@ -484,3 +494,12 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS savings_goal_prompt_dismiss
 
 -- Named savings goal (2026-07-08)
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_name text;
+
+-- Dream target + progress ledger (2026-07-08)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_target_amount numeric
+  CHECK (goal_target_amount IS NULL OR goal_target_amount >= 0);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_target_date date;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_saved_amount numeric NOT NULL DEFAULT 0
+  CHECK (goal_saved_amount >= 0);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_progress_through_month text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_started_at date;

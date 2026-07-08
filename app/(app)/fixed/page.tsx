@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { FixedSpending } from '@/types'
 import { formatCurrency } from '@/lib/calculations'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import TabBar from '@/components/ui/TabBar'
 
 export default function FixedCostsPage() {
@@ -13,6 +14,7 @@ export default function FixedCostsPage() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [currency, setCurrency] = useState('SGD')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -29,7 +31,9 @@ export default function FixedCostsPage() {
       supabase.from('profiles').select('primary_currency').eq('id', user.id).single(),
     ])
     setItems((fixedRes.data || []) as FixedSpending[])
-    if (profileRes.data) setCurrency(profileRes.data.primary_currency || 'SGD')
+    if (profileRes.data) {
+      setCurrency(getProfileDisplayCurrency(profileRes.data as { primary_currency: string }))
+    }
     setLoading(false)
   }
 
@@ -38,19 +42,30 @@ export default function FixedCostsPage() {
   const handleSave = async () => {
     if (!name.trim() || !amount) return
     setSaving(true)
+    setSaveError(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     if (editingId) {
-      await supabase.from('fixed_spending').update({
+      const { error } = await supabase.from('fixed_spending').update({
         name, amount: parseFloat(amount), emoji,
         due_day: dueDay ? parseInt(dueDay) : null,
       }).eq('id', editingId)
+      if (error) {
+        setSaveError(error.message)
+        setSaving(false)
+        return
+      }
     } else {
-      await supabase.from('fixed_spending').insert({
+      const { error } = await supabase.from('fixed_spending').insert({
         user_id: user.id, name, amount: parseFloat(amount), emoji,
         due_day: dueDay ? parseInt(dueDay) : null,
       })
+      if (error) {
+        setSaveError(error.message)
+        setSaving(false)
+        return
+      }
     }
 
     setName(''); setAmount(''); setEmoji('💳')
@@ -69,7 +84,16 @@ export default function FixedCostsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    await supabase.from('fixed_spending').delete().eq('id', id)
+    setSaveError(null)
+    const { error } = await supabase.from('fixed_spending').delete().eq('id', id)
+    if (error) {
+      setSaveError(error.message)
+      return
+    }
+    if (editingId === id) {
+      setShowAdd(false)
+      setEditingId(null)
+    }
     load()
   }
 
@@ -162,6 +186,12 @@ export default function FixedCostsPage() {
                     Edit
                   </button>
                   <button
+                    onClick={() => handleDelete(item.id)}
+                    className="text-xs text-danger px-2 py-1 rounded-lg bg-red-50"
+                  >
+                    Delete
+                  </button>
+                  <button
                     onClick={() => handleToggle(item)}
                     className={`w-10 h-6 rounded-full transition-colors ${
                       item.is_active ? 'bg-saffron' : 'bg-gray-200'
@@ -238,6 +268,10 @@ export default function FixedCostsPage() {
                 max="31"
               />
             </div>
+
+            {saveError && (
+              <p className="text-xs text-danger mb-3">{saveError}</p>
+            )}
 
             <button
               onClick={handleSave}

@@ -1,4 +1,4 @@
-import type { Profile } from '@/types'
+import type { DreamProgress, Profile } from '@/types'
 
 export type MoodValue = 'good' | 'anxious' | 'stressed'
 export type MoodTrend = 'stable' | 'improving' | 'worsening' | 'mixed' | 'unknown'
@@ -43,6 +43,7 @@ export interface CompanionContext {
       goalName: string | null
       status: 'none' | 'protected' | 'at_risk'
       stillPossible: number | null
+      dream: DreamProgress | null
     }
   }
   spending: {

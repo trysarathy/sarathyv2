@@ -1,11 +1,13 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Profile } from '@/types'
 import { getLevelName, formatCurrency } from '@/lib/calculations'
 import { getProfileDisplayCurrency, LIFE_CURRENCIES } from '@/lib/home/display-currency'
+import { suggestMonthlyAmount } from '@/lib/dream-goal'
 import { saveMonthlySavingsGoal } from '@/lib/savings-goal'
+import { todayInSingapore } from '@/lib/sarathy/sgt'
 import TabBar from '@/components/ui/TabBar'
 import CurrencySelector from '@/components/ui/CurrencySelector'
 
@@ -16,17 +18,44 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [savingsGoal, setSavingsGoal] = useState('')
   const [goalName, setGoalName] = useState('')
+  const [targetAmount, setTargetAmount] = useState('')
+  const [targetDate, setTargetDate] = useState('')
+  const [monthlyTouched, setMonthlyTouched] = useState(false)
   const [savingGoal, setSavingGoal] = useState(false)
   const [goalSaved, setGoalSaved] = useState(false)
+  const [planningAmount, setPlanningAmount] = useState('')
+  const [savingPlan, setSavingPlan] = useState(false)
+
+  const currency = profile ? getProfileDisplayCurrency(profile) : 'SGD'
+  const today = todayInSingapore()
+
+  const suggestion = useMemo(() => {
+    const target = parseFloat(targetAmount)
+    if (!target || target <= 0 || !targetDate || !profile) return null
+    const savedFinalized = profile.goal_saved_amount ?? 0
+    const suggested = suggestMonthlyAmount(target, savedFinalized, targetDate, today)
+    return { suggested, target }
+  }, [targetAmount, targetDate, profile, today])
+
+  useEffect(() => {
+    if (suggestion && !monthlyTouched) {
+      setSavingsGoal(String(suggestion.suggested))
+    }
+  }, [suggestion, monthlyTouched])
 
   const loadProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/login'); return }
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     if (data) {
-      setProfile(data as Profile)
-      setSavingsGoal(String((data as Profile).monthly_savings_goal ?? 0))
-      setGoalName((data as Profile).goal_name ?? '')
+      const p = data as Profile
+      setProfile(p)
+      setSavingsGoal(String(p.monthly_savings_goal ?? 0))
+      setGoalName(p.goal_name ?? '')
+      setTargetAmount(p.goal_target_amount ? String(p.goal_target_amount) : '')
+      setTargetDate(p.goal_target_date ?? '')
+      setPlanningAmount(p.planning_amount ? String(p.planning_amount) : '')
+      setMonthlyTouched(false)
     }
     setLoading(false)
   }
@@ -44,20 +73,49 @@ export default function ProfilePage() {
     setProfile(prev => prev ? { ...prev, primary_currency: code } : prev)
   }
 
+  const handlePlanningSave = async () => {
+    if (!profile) return
+    const parsed = Math.max(0, Math.round(parseFloat(planningAmount) || 0))
+    setSavingPlan(true)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ planning_amount: parsed || null })
+      .eq('id', profile.id)
+    setSavingPlan(false)
+    if (!error) {
+      setProfile(prev => prev ? { ...prev, planning_amount: parsed || null } : prev)
+      setPlanningAmount(parsed ? String(parsed) : '')
+    }
+  }
+
   const handleSavingsGoalSave = async () => {
     if (!profile) return
     const parsed = Math.max(0, Math.round(parseFloat(savingsGoal) || 0))
+    const parsedTarget = targetAmount ? Math.max(0, Math.round(parseFloat(targetAmount) || 0)) : null
     setSavingGoal(true)
     setGoalSaved(false)
     try {
-      await saveMonthlySavingsGoal(parsed, goalName)
+      await saveMonthlySavingsGoal({
+        goal: parsed,
+        goalName,
+        goalTargetAmount: parsed > 0 ? parsedTarget : null,
+        goalTargetDate: parsed > 0 && targetDate ? targetDate : null,
+      })
       setProfile(prev => prev ? {
         ...prev,
         monthly_savings_goal: parsed,
         savings_goal_prompt_dismissed: true,
         goal_name: goalName.trim() || null,
+        goal_target_amount: parsed > 0 ? parsedTarget : null,
+        goal_target_date: parsed > 0 && targetDate ? targetDate : null,
+        ...(parsed === 0 ? {
+          goal_saved_amount: 0,
+          goal_progress_through_month: null,
+          goal_started_at: null,
+        } : {}),
       } : prev)
       setSavingsGoal(String(parsed))
+      setMonthlyTouched(false)
       setGoalSaved(true)
       setTimeout(() => setGoalSaved(false), 2000)
     } finally {
@@ -98,16 +156,35 @@ export default function ProfilePage() {
           </div>
           <div className="text-center">
             <p className="font-fraunces text-xl font-semibold text-ink">
-              {profile.planning_amount ? formatCurrency(profile.planning_amount, profile.primary_currency) : '—'}
+              {profile.planning_amount ? formatCurrency(profile.planning_amount, currency) : '—'}
             </p>
             <p className="text-xs text-ink-3">monthly plan</p>
           </div>
+        </div>
+        <div className="flex gap-2 mt-4 pt-4 border-t border-cream">
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={planningAmount}
+            onChange={(e) => setPlanningAmount(e.target.value)}
+            placeholder="Monthly plan amount"
+            className="input-field flex-1 py-2 text-sm"
+          />
+          <button
+            type="button"
+            onClick={handlePlanningSave}
+            disabled={savingPlan}
+            className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-saffron disabled:opacity-50 shrink-0"
+          >
+            Update plan
+          </button>
         </div>
       </div>
 
       <div className="card mb-4">
         <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">
-          🛡️ Monthly savings goal
+          🛡️ Savings dream
         </p>
         <div className="flex gap-2 mb-2">
           <input
@@ -123,9 +200,30 @@ export default function ProfilePage() {
             min="0"
             step="1"
             value={savingsGoal}
-            onChange={(e) => setSavingsGoal(e.target.value)}
-            placeholder="Amount"
+            onChange={(e) => {
+              setMonthlyTouched(true)
+              setSavingsGoal(e.target.value)
+            }}
+            placeholder="/ month"
             className="input-field flex-1 py-2.5 text-sm min-w-[4.5rem]"
+          />
+        </div>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={targetAmount}
+            onChange={(e) => setTargetAmount(e.target.value)}
+            placeholder="How much in total?"
+            className="input-field flex-1 py-2.5 text-sm min-w-0"
+          />
+          <input
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            className="input-field flex-1 py-2.5 text-sm min-w-0"
+            aria-label="By when?"
           />
           <button
             type="button"
@@ -136,8 +234,15 @@ export default function ProfilePage() {
             Save
           </button>
         </div>
-        <p className="text-xs text-ink-3 mt-2">
-          Sarathy treats this as already set aside — your safe-to-spend won&apos;t touch it. Set to 0 to turn off.
+        {suggestion && !monthlyTouched && (
+          <p className="text-xs text-ink-3 mb-2">
+            Suggested {formatCurrency(suggestion.suggested, currency)}/mo to hit{' '}
+            {formatCurrency(suggestion.target, currency)} by{' '}
+            {new Date(`${targetDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+          </p>
+        )}
+        <p className="text-xs text-ink-3">
+          Sarathy treats the monthly amount as already set aside — your safe-to-spend won&apos;t touch it. Set monthly to 0 to turn off.
         </p>
         {goalSaved && (
           <p className="text-xs text-safe mt-2 font-medium">Saved ✓</p>

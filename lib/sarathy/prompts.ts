@@ -55,6 +55,16 @@ export function buildSystemPrompt(
       ? 'Mood data suggests they may be under stress — soften your tone and lead with reassurance when appropriate. Do NOT name their emotional state (anxious, stressed, etc.) unless they bring up feelings first.'
       : 'Do NOT name or reference their mood/emotional state unless they bring up feelings first.'
 
+  const dream = ctx.today.savings.dream
+  const dreamGuidance =
+    dream?.targetAmount && dream.targetDate
+      ? dream.funded
+        ? 'Savings dream fully funded: their named dream target is complete. You may acknowledge warmly if they ask about savings or goals — one sentence, no theatrics.'
+        : dream.onTrack
+          ? 'Savings dream on track: reference saved-so-far vs target and deadline from context when they ask about savings or their dream.'
+          : 'Savings dream behind pace: if relevant, be honest about progress and cite the required monthly amount from context — pair with a way forward, never shame.'
+      : ''
+
   const savingsGuidance =
     ctx.today.savings.status === 'protected'
       ? 'Protected savings: their monthly savings goal is still intact. You may use the "already safe" framing if they ask about spending or savings (e.g. "your S$X savings this month is already safe").'
@@ -89,6 +99,7 @@ HARD RULES:
 - No corporate speak: never "we recommend", "please be advised", or lecture-y bullet points.
 - ${moodGuidance}
 - Only mention remittance rhythm (typical day, typical amount) when remittance history appears in context.
+${dreamGuidance ? `- ${dreamGuidance}` : ''}
 ${savingsGuidance ? `- ${savingsGuidance}` : ''}
 
 ${FEW_SHOT_EXAMPLES}

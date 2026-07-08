@@ -1,4 +1,6 @@
 import { calculateSafeToSpend, getLevelName } from '@/lib/calculations'
+import { attachDreamProgress, finalizeDreamMonths } from '@/lib/dream-goal'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import { createServiceSupabaseClient } from '@/lib/supabase-admin'
 import { getWiseMode } from '@/lib/wise'
 import type { BudgetEntry, FixedSpending, Profile } from '@/types'
@@ -71,7 +73,15 @@ export async function buildCompanionContext(userId: string): Promise<CompanionCo
   const entries = (entriesRes.data ?? []) as BudgetEntryRow[]
   const fixedSpending = (fixedRes.data ?? []) as FixedSpending[]
 
-  const safeData = calculateSafeToSpend(profile, entries as BudgetEntry[], fixedSpending)
+  const finalizedProfile =
+    (await finalizeDreamMonths(supabase, userId, profile, entries as BudgetEntry[], fixedSpending, today)) ??
+    profile
+
+  const safeData = attachDreamProgress(
+    calculateSafeToSpend(finalizedProfile, entries as BudgetEntry[], fixedSpending),
+    finalizedProfile,
+    today
+  )
   const spending = analyzeSpendingPatterns(entries)
   const mood = analyzeMoodTrend((moodRes.data ?? []) as MoodLogRow[])
   const remittance = analyzeRemittanceRhythm((remittanceRes.data ?? []) as RemittanceLogRow[])
@@ -97,7 +107,7 @@ export async function buildCompanionContext(userId: string): Promise<CompanionCo
     user: {
       name: displayName,
       firstName,
-      currency: profile.primary_currency || 'SGD',
+      currency: getProfileDisplayCurrency(profile),
       companionVibe: profile.companion_vibe,
       homeCountry: profile.home_country,
       currentCountry: profile.current_country,

@@ -2,34 +2,39 @@ import { BudgetEntry, FixedSpending, Profile, SafeToSpendData, SafetyStatus, PLC
 import { todayInSingapore } from '@/lib/sarathy/sgt'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 
-export function calculateSafeToSpend(
+export interface SafeToSpendAsOf {
+  /** Calendar year (same semantics as Date#getFullYear). */
+  year: number
+  /** 0-indexed month (same semantics as Date#getMonth). */
+  month: number
+  /** Day of month (same semantics as Date#getDate). */
+  day: number
+}
+
+/** Core safe-to-spend calculation for an explicit calendar day (local date parts). */
+export function calculateSafeToSpendAsOf(
   profile: Profile,
   entries: BudgetEntry[],
-  fixedSpending: FixedSpending[]
+  fixedSpending: FixedSpending[],
+  asOf: SafeToSpendAsOf
 ): SafeToSpendData {
-  const now = new Date()
-  const today = now.getDate()
-  const year = now.getFullYear()
-  const month = now.getMonth()
+  const { year, month, day: today } = asOf
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const daysLeft = daysInMonth - today + 1
   const currency = getProfileDisplayCurrency(profile)
   const planAmount = profile.planning_amount || 0
   const savingsGoal = profile.monthly_savings_goal ?? 0
 
-  // Fixed costs still due this month
   const fixedLeft = fixedSpending
     .filter(f => f.is_active && (f.due_day || 1) >= today)
     .reduce((sum, f) => sum + f.amount, 0)
 
-  // Already spent this month
   const currentMonthEntries = entries.filter(e => {
     const entryDate = new Date(e.entry_date)
     return entryDate.getMonth() === month && entryDate.getFullYear() === year
   })
   const alreadySpent = currentMonthEntries.reduce((sum, e) => sum + e.amount, 0)
 
-  // 10% safety buffer
   const buffer = planAmount * 0.10
 
   const roomAfterEssentials = planAmount - fixedLeft - alreadySpent - buffer
@@ -47,14 +52,11 @@ export function calculateSafeToSpend(
     }
   }
 
-  // Safety status
   const dailyIdeal = planAmount / daysInMonth
   let status: SafetyStatus = 'safe'
   if (safeToSpend <= 0) status = 'danger'
   else if (safeToSpend < dailyIdeal * 0.5) status = 'tight'
 
-  // Safety line in plain language
-  const safeUntilDay = Math.round(today + (freeToUse / Math.max(alreadySpent / Math.max(today, 1), 1)))
   let safetyLine = ''
   if (status === 'safe') {
     safetyLine = `You're safe till the ${daysInMonth}th 🟢`
@@ -80,8 +82,22 @@ export function calculateSafeToSpend(
       goalName: profile.goal_name?.trim() || null,
       status: savingsStatus,
       stillPossible,
+      dream: null,
     },
   }
+}
+
+export function calculateSafeToSpend(
+  profile: Profile,
+  entries: BudgetEntry[],
+  fixedSpending: FixedSpending[]
+): SafeToSpendData {
+  const now = new Date()
+  return calculateSafeToSpendAsOf(profile, entries, fixedSpending, {
+    year: now.getFullYear(),
+    month: now.getMonth(),
+    day: now.getDate(),
+  })
 }
 
 export function groupEntriesByCategory(entries: BudgetEntry[]): PLCategory[] {

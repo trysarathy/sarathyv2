@@ -1,15 +1,21 @@
 import { getAuthHeaders } from '@/lib/api-auth'
 
-export async function saveMonthlySavingsGoal(
-  goal: number,
+export interface SavingsGoalSaveInput {
+  goal: number
   goalName?: string | null
-): Promise<void> {
+  goalTargetAmount?: number | null
+  goalTargetDate?: string | null
+}
+
+export async function saveMonthlySavingsGoal(input: SavingsGoalSaveInput): Promise<void> {
   const res = await fetch('/api/profile/savings-goal', {
     method: 'POST',
     headers: await getAuthHeaders(),
     body: JSON.stringify({
-      goal,
-      goalName: goalName?.trim() || null,
+      goal: input.goal,
+      goalName: input.goalName?.trim() || null,
+      goalTargetAmount: input.goalTargetAmount ?? null,
+      goalTargetDate: input.goalTargetDate?.trim() || null,
     }),
   })
 

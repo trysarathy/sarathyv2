@@ -1,8 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { formatCurrency } from '@/lib/calculations'
+import { suggestMonthlyAmount } from '@/lib/dream-goal'
 import { dismissSavingsGoalPrompt, saveMonthlySavingsGoal } from '@/lib/savings-goal'
+import { todayInSingapore } from '@/lib/sarathy/sgt'
+import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import type { Profile } from '@/types'
 
 interface Props {
@@ -13,7 +17,26 @@ interface Props {
 export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
   const [amount, setAmount] = useState('')
   const [goalName, setGoalName] = useState('')
+  const [targetAmount, setTargetAmount] = useState('')
+  const [targetDate, setTargetDate] = useState('')
+  const [monthlyTouched, setMonthlyTouched] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  const currency = getProfileDisplayCurrency(profile)
+  const today = todayInSingapore()
+
+  const suggestion = useMemo(() => {
+    const target = parseFloat(targetAmount)
+    if (!target || target <= 0 || !targetDate) return null
+    const suggested = suggestMonthlyAmount(target, 0, targetDate, today)
+    return { suggested, target }
+  }, [targetAmount, targetDate, today])
+
+  useEffect(() => {
+    if (suggestion && !monthlyTouched) {
+      setAmount(String(suggestion.suggested))
+    }
+  }, [suggestion, monthlyTouched])
 
   const show =
     (profile.monthly_savings_goal ?? 0) === 0 &&
@@ -26,7 +49,12 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
     if (!parsed || parsed <= 0) return
     setSaving(true)
     try {
-      await saveMonthlySavingsGoal(parsed, goalName)
+      await saveMonthlySavingsGoal({
+        goal: Math.round(parsed),
+        goalName,
+        goalTargetAmount: suggestion ? Math.round(suggestion.target) : null,
+        goalTargetDate: targetDate || null,
+      })
       onUpdated()
     } finally {
       setSaving(false)
@@ -66,7 +94,10 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
           min="1"
           step="1"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            setMonthlyTouched(true)
+            setAmount(e.target.value)
+          }}
           placeholder="150"
           className="home-savings-input flex-1 min-w-[4.5rem]"
         />
@@ -79,6 +110,33 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
           Set
         </button>
       </div>
+
+      <div className="flex gap-2 mb-2">
+        <input
+          type="number"
+          min="1"
+          step="1"
+          value={targetAmount}
+          onChange={(e) => setTargetAmount(e.target.value)}
+          placeholder="How much in total?"
+          className="home-savings-input flex-1 min-w-0"
+        />
+        <input
+          type="date"
+          value={targetDate}
+          onChange={(e) => setTargetDate(e.target.value)}
+          className="home-savings-input flex-1 min-w-0"
+          aria-label="By when?"
+        />
+      </div>
+
+      {suggestion && !monthlyTouched && (
+        <p className="text-indigo-muted text-[11px] mb-2">
+          Suggested {formatCurrency(suggestion.suggested, currency)}/mo to hit{' '}
+          {formatCurrency(suggestion.target, currency)} by{' '}
+          {new Date(`${targetDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+        </p>
+      )}
 
       <div className="flex items-center justify-between">
         <Link

@@ -1,6 +1,7 @@
 'use client'
 
 import { formatCurrency } from '@/lib/calculations'
+import { formatDreamHeroLine } from '@/lib/dream-goal'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import AccountsSummaryLine from '@/components/home/AccountsSummaryLine'
 import type { Profile, SafeToSpendData } from '@/types'
@@ -25,6 +26,51 @@ const NUMBER_COLOR: Record<'safe' | 'tight' | 'danger', string> = {
   danger: 'text-rose-300',
 }
 
+function renderSavingsLine(safeData: SafeToSpendData, currency: string) {
+  const { savings } = safeData
+  const dream = savings.dream
+
+  if (dream?.targetAmount && dream.targetDate) {
+    const dreamLine = formatDreamHeroLine(dream, currency)
+    if (dreamLine) {
+      const tone =
+        savings.status === 'at_risk' && !dream.funded
+          ? 'text-amber-300/90'
+          : 'text-ink-on-indigo/80'
+      return (
+        <p className={`${tone} text-xs font-medium`}>
+          {dreamLine}
+        </p>
+      )
+    }
+  }
+
+  if (savings.status === 'protected') {
+    return (
+      <p className="text-ink-on-indigo/80 text-xs font-medium">
+        <span className="text-gold">🛡️</span>{' '}
+        {savings.goalName
+          ? `${savings.goalName}: ${formatCurrency(savings.monthlyGoal, currency)} protected`
+          : `${formatCurrency(savings.monthlyGoal, currency)} savings protected this month`}
+      </p>
+    )
+  }
+
+  if (savings.status === 'at_risk' && savings.stillPossible !== null) {
+    return (
+      <p className="text-amber-300/90 text-xs font-medium">
+        ⚠️ {formatCurrency(savings.stillPossible, currency)} of your{' '}
+        {savings.goalName
+          ? `${savings.goalName} (${formatCurrency(savings.monthlyGoal, currency)})`
+          : formatCurrency(savings.monthlyGoal, currency)}{' '}
+        still possible
+      </p>
+    )
+  }
+
+  return null
+}
+
 export default function SafeToSpendHero({
   profile,
   safeData,
@@ -34,6 +80,13 @@ export default function SafeToSpendHero({
   onTap,
 }: Props) {
   const currency = getProfileDisplayCurrency(profile)
+  const savingsLine = renderSavingsLine(safeData, currency)
+  const showSavings =
+    savingsLine !== null &&
+    (safeData.savings.status === 'protected' ||
+      safeData.savings.status === 'at_risk' ||
+      Boolean(safeData.savings.dream?.targetAmount && safeData.savings.dream?.targetDate) ||
+      Boolean(safeData.savings.dream?.funded))
 
   return (
     <button
@@ -69,27 +122,7 @@ export default function SafeToSpendHero({
 
       <AccountsSummaryLine profile={profile} />
 
-      {(safeData.savings.status === 'protected' || safeData.savings.status === 'at_risk') && (
-        <div className="mt-4">
-          {safeData.savings.status === 'protected' && (
-            <p className="text-ink-on-indigo/80 text-xs font-medium">
-              <span className="text-gold">🛡️</span>{' '}
-              {safeData.savings.goalName
-                ? `${safeData.savings.goalName}: ${formatCurrency(safeData.savings.monthlyGoal, currency)} protected`
-                : `${formatCurrency(safeData.savings.monthlyGoal, currency)} savings protected this month`}
-            </p>
-          )}
-          {safeData.savings.status === 'at_risk' && safeData.savings.stillPossible !== null && (
-            <p className="text-amber-300/90 text-xs font-medium">
-              ⚠️ {formatCurrency(safeData.savings.stillPossible, currency)} of your{' '}
-              {safeData.savings.goalName
-                ? `${safeData.savings.goalName} (${formatCurrency(safeData.savings.monthlyGoal, currency)})`
-                : formatCurrency(safeData.savings.monthlyGoal, currency)}{' '}
-              still possible
-            </p>
-          )}
-        </div>
-      )}
+      {showSavings && <div className="mt-4">{savingsLine}</div>}
 
       <div className="mt-5 space-y-1.5">
         <div className="flex justify-between items-center">

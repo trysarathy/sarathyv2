@@ -25,6 +25,11 @@ export interface Profile {
   monthly_savings_goal?: number
   savings_goal_prompt_dismissed?: boolean
   goal_name?: string | null
+  goal_target_amount?: number | null
+  goal_target_date?: string | null
+  goal_saved_amount?: number
+  goal_progress_through_month?: string | null
+  goal_started_at?: string | null
   created_at: string
 }
 
@@ -92,6 +97,20 @@ export interface MoneyAllocation {
 export type SafetyStatus = 'safe' | 'tight' | 'danger'
 export type SavingsProtectionStatus = 'none' | 'protected' | 'at_risk'
 
+export interface DreamProgress {
+  goalName: string | null
+  monthlyGoal: number
+  targetAmount: number | null
+  targetDate: string | null
+  savedSoFar: number
+  savedFinalized: number
+  monthsRemaining: number | null
+  requiredMonthly: number | null
+  onTrack: boolean | null
+  targetDateLabel: string | null
+  funded: boolean
+}
+
 export interface SafeToSpendData {
   safeToSpend: number
   status: SafetyStatus
@@ -108,6 +127,7 @@ export interface SafeToSpendData {
     goalName: string | null
     status: SavingsProtectionStatus
     stillPossible: number | null
+    dream: DreamProgress | null
   }
 }
 

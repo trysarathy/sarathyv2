@@ -9,6 +9,7 @@ import {
   getCategoryEmoji,
   getMonthEntries,
 } from '@/lib/calculations'
+import { attachDreamProgress, finalizeDreamMonths } from '@/lib/dream-goal'
 import { Profile, BudgetEntry, FixedSpending, SafeToSpendData, PLCategory } from '@/types'
 import { todayInSingapore } from '@/lib/sarathy/sgt'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
@@ -23,6 +24,7 @@ import HomeActionsRow from '@/components/home/HomeActionsRow'
 import ConnectedAccountsStrip from '@/components/home/ConnectedAccountsStrip'
 import ExploreGrid from '@/components/home/ExploreGrid'
 import MonthSummarySheet from '@/components/home/MonthSummarySheet'
+import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
 
 export default function HomePage() {
   const router = useRouter()
@@ -39,6 +41,13 @@ export default function HomePage() {
   const [showTrust, setShowTrust] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<PLCategory | null>(null)
+  const [editingEntry, setEditingEntry] = useState<BudgetEntry | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+  const [savingEntry, setSavingEntry] = useState(false)
+  const [entrySaveError, setEntrySaveError] = useState<string | null>(null)
   const [xpFloat, setXpFloat] = useState<{ show: boolean; x: number; y: number; xp: number }>({
     show: false,
     x: 0,
@@ -61,16 +70,25 @@ export default function HomePage() {
     }
 
     if (profileRes.data) {
-      const p = profileRes.data as Profile
+      let p = profileRes.data as Profile
       if (!p.onboarding_complete) { router.replace('/onboarding'); return }
-      setProfile(p)
 
       const e = (entriesRes.error ? [] : entriesRes.data || []) as BudgetEntry[]
       const f = (fixedRes.data || []) as FixedSpending[]
+      const today = todayInSingapore()
+
+      try {
+        const finalized = await finalizeDreamMonths(supabase, user.id, p, e, f, today)
+        if (finalized) p = finalized
+      } catch (err) {
+        console.error('Dream month finalize failed:', err)
+      }
+
+      setProfile(p)
       setEntries(e)
       setFixedSpending(f)
 
-      const safe = calculateSafeToSpend(p, e, f)
+      const safe = attachDreamProgress(calculateSafeToSpend(p, e, f), p, today)
       setSafeData(safe)
 
       const monthEntries = getMonthEntries(e)
@@ -99,6 +117,63 @@ export default function HomePage() {
       setTimeout(() => setXpFloat({ show: false, x: 0, y: 0, xp: 0 }), 1200)
     }
 
+    await loadData()
+  }
+
+  const openEditEntry = (entry: BudgetEntry) => {
+    setEditingEntry(entry)
+    setEditAmount(String(entry.amount))
+    setEditDescription(entry.description ?? '')
+    setEditDate(entry.entry_date.slice(0, 10))
+    setEditCategory(entry.category)
+    setEntrySaveError(null)
+  }
+
+  const closeEditEntry = () => {
+    setEditingEntry(null)
+    setEntrySaveError(null)
+  }
+
+  const handleSaveEntry = async () => {
+    if (!editingEntry) return
+    const amount = parseFloat(editAmount)
+    if (!amount || amount <= 0) {
+      setEntrySaveError('Enter a valid amount')
+      return
+    }
+    setSavingEntry(true)
+    setEntrySaveError(null)
+    const { error } = await supabase
+      .from('budget_entries')
+      .update({
+        amount: Math.round(amount * 100) / 100,
+        description: editDescription.trim() || null,
+        entry_date: editDate,
+        category: editCategory,
+      })
+      .eq('id', editingEntry.id)
+
+    setSavingEntry(false)
+    if (error) {
+      setEntrySaveError(error.message)
+      return
+    }
+    closeEditEntry()
+    setSelectedCategory(null)
+    await loadData()
+  }
+
+  const handleDeleteEntry = async (entryId: string) => {
+    setSavingEntry(true)
+    setEntrySaveError(null)
+    const { error } = await supabase.from('budget_entries').delete().eq('id', entryId)
+    setSavingEntry(false)
+    if (error) {
+      setEntrySaveError(error.message)
+      return
+    }
+    closeEditEntry()
+    setSelectedCategory(null)
     await loadData()
   }
 
@@ -210,17 +285,88 @@ export default function HomePage() {
             </div>
             <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
               {selectedCategory.entries.map(entry => (
-                <div key={entry.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-ink">{entry.description || entry.category}</p>
+                <div key={entry.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0 gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-ink truncate">{entry.description || entry.category}</p>
                     <p className="text-xs text-ink-3">
                       {new Date(entry.entry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-ink">{formatCurrency(entry.amount, currency)}</span>
+                  <span className="text-sm font-semibold text-ink shrink-0">{formatCurrency(entry.amount, currency)}</span>
+                  <button
+                    type="button"
+                    onClick={() => openEditEntry(entry)}
+                    className="text-xs text-ink-3 px-2 py-1 rounded-lg bg-cream shrink-0"
+                  >
+                    Edit
+                  </button>
                 </div>
               ))}
             </div>
+          </div>
+        </>
+      )}
+
+      {editingEntry && (
+        <>
+          <div className="overlay" onClick={closeEditEntry} />
+          <div className="bottom-sheet">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-fraunces text-xl font-semibold text-ink">Edit expense</h3>
+              <button type="button" onClick={closeEditEntry} className="text-ink-3 text-2xl">×</button>
+            </div>
+
+            <input
+              type="number"
+              value={editAmount}
+              onChange={(e) => setEditAmount(e.target.value)}
+              placeholder="Amount"
+              className="input-field mb-3"
+              inputMode="decimal"
+            />
+            <input
+              type="text"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Description"
+              className="input-field mb-3"
+            />
+            <input
+              type="date"
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+              className="input-field mb-3"
+            />
+            <select
+              value={editCategory}
+              onChange={(e) => setEditCategory(e.target.value)}
+              className="input-field mb-3"
+            >
+              {EXPENSE_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            {entrySaveError && (
+              <p className="text-xs text-danger mb-3">{entrySaveError}</p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSaveEntry}
+              disabled={savingEntry}
+              className="btn-primary"
+            >
+              {savingEntry ? 'Saving…' : 'Save changes'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteEntry(editingEntry.id)}
+              disabled={savingEntry}
+              className="w-full mt-3 py-3 text-sm text-danger font-medium"
+            >
+              Delete expense
+            </button>
           </div>
         </>
       )}
