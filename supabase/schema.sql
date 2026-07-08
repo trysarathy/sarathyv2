@@ -73,7 +73,7 @@ COMMENT ON COLUMN public.profiles.goal_started_at IS 'First month dream savings 
 -- -----------------------------------------------------------------------------
 -- budget_entries
 -- Expense log (manual, statement upload, receipt, Wise sync).
--- logged_via values used in app: manual | statement | receipt | wise | finverse
+-- logged_via values used in app: manual | statement | receipt | wise | finverse | circle_split
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.budget_entries (
@@ -91,9 +91,11 @@ CREATE TABLE IF NOT EXISTS public.budget_entries (
 );
 
 COMMENT ON TABLE public.budget_entries IS 'All user expenses; amount is stored in profile primary_currency after FX conversion when applicable';
-COMMENT ON COLUMN public.budget_entries.logged_via IS 'Source: manual, statement, receipt, wise, finverse';
+COMMENT ON COLUMN public.budget_entries.logged_via IS 'Source: manual, statement, receipt, wise, finverse, circle_split';
 COMMENT ON COLUMN public.budget_entries.original_amount IS 'Pre-conversion amount when logged in a foreign currency (LogExpenseSheet)';
 COMMENT ON COLUMN public.budget_entries.original_currency IS 'ISO currency code for original_amount';
+COMMENT ON COLUMN public.budget_entries.source_circle_moment_id IS
+  'Set when user taps Add my share on a circle split; prevents double-claim';
 
 CREATE INDEX IF NOT EXISTS budget_entries_user_id_idx ON public.budget_entries (user_id);
 CREATE INDEX IF NOT EXISTS budget_entries_user_entry_date_idx ON public.budget_entries (user_id, entry_date DESC);
@@ -201,7 +203,7 @@ CREATE INDEX IF NOT EXISTS circle_members_user_id_idx ON public.circle_members (
 
 -- -----------------------------------------------------------------------------
 -- circle_moments
--- Shared activity feed inside a circle (streak, check-in, goal, win).
+-- Shared activity feed inside a circle (streak, check-in, goal, win, expense_split).
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.circle_moments (
@@ -503,3 +505,10 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_saved_amount numeric N
   CHECK (goal_saved_amount >= 0);
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_progress_through_month text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_started_at date;
+
+-- Circle expense split claims (2026-07-08)
+ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS source_circle_moment_id uuid
+  REFERENCES public.circle_moments (id) ON DELETE SET NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS budget_entries_user_moment_claim_idx
+  ON public.budget_entries (user_id, source_circle_moment_id)
+  WHERE source_circle_moment_id IS NOT NULL;

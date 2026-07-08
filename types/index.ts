@@ -42,6 +42,7 @@ export interface BudgetEntry {
   entry_date: string
   payment_method: string | null
   logged_via: string
+  source_circle_moment_id?: string | null
   created_at: string
 }
 
@@ -136,4 +137,31 @@ export interface PLCategory {
   total: number
   entries: BudgetEntry[]
   percentage: number
+}
+
+export interface ExpenseSplitContent {
+  description: string
+  total_amount: number
+  currency: string
+  participant_ids: string[]
+  share_amount: number
+  split_count: number
+  category: string
+  shares_by_user: Record<string, number>
+}
+
+export interface CircleMemberWithProfile {
+  user_id: string
+  display_name: string | null
+  name: string | null
+}
+
+export interface CircleMoment {
+  id: string
+  circle_id: string
+  sender_id: string
+  type: string
+  content: ExpenseSplitContent | Record<string, unknown>
+  reactions: string[]
+  created_at: string
 }
