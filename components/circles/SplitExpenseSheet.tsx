@@ -59,6 +59,10 @@ export default function SplitExpenseSheet({
     return Math.round((total / selectedIds.length) * 100) / 100
   }, [amount, selectedIds.length])
 
+  const parsedAmount = parseFloat(amount)
+  const displayAmount =
+    parsedAmount > 0 ? formatCurrency(parsedAmount, currency) : '—'
+
   const handleCreate = async () => {
     const total = parseFloat(amount)
     if (!description.trim() || !total || total <= 0) {
@@ -109,35 +113,39 @@ export default function SplitExpenseSheet({
   if (createdMoment && createdContent) {
     return (
       <>
-        <div className="overlay" onClick={handleDone} />
-        <div className="bottom-sheet">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-fraunces text-xl font-semibold text-ink">Split shared ✓</h3>
-            <button type="button" onClick={handleDone} className="text-ink-3 text-2xl">×</button>
+        <div className="circles-overlay" onClick={handleDone} />
+        <div className="circles-sheet circles-enter-1">
+          <div className="circles-sheet-indigo-top">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="circles-kicker text-indigo-muted mb-1">Shared with circle</p>
+                <h3 className="font-fraunces text-xl font-semibold text-ink-on-indigo">Split shared</h3>
+              </div>
+              <button type="button" onClick={handleDone} className="text-ink-on-indigo/50 text-2xl leading-none">×</button>
+            </div>
+            <p className="font-fraunces text-lg text-ink-on-indigo/90 mb-1">{createdContent.description}</p>
+            <p className="circles-split-hero-amount">{formatCurrency(createdContent.total_amount, createdContent.currency)}</p>
+            <p className="text-xs text-ink-on-indigo/55 mt-2">
+              Split {createdContent.split_count} ways · visible to everyone in this circle
+            </p>
           </div>
 
-          <p className="text-sm text-ink mb-4">
-            {createdContent.description}{' '}
-            {formatCurrency(createdContent.total_amount, createdContent.currency)} — split{' '}
-            {createdContent.split_count} ways. Your circle can see this total.
-          </p>
-
           {myShare != null && (
-            <div className="bg-cream rounded-xl p-4 mb-4">
-              <p className="text-sm text-ink mb-3">
-                Your share:{' '}
-                <span className="font-semibold">
-                  {formatCurrency(myShare, createdContent.currency)}
-                </span>
+            <div className="circles-card mb-4">
+              <p className="text-sm text-indigo mb-1">Your share</p>
+              <p className="font-fraunces text-2xl font-light text-indigo mb-4">
+                {formatCurrency(myShare, createdContent.currency)}
               </p>
               {claimed ? (
-                <p className="text-sm text-safe font-medium">✓ Added to your expenses</p>
+                <p className="text-sm text-safe font-medium flex items-center gap-1.5">
+                  <span className="text-gold">✓</span> Added to your expenses
+                </p>
               ) : (
                 <button
                   type="button"
                   onClick={handleClaim}
                   disabled={claiming}
-                  className="btn-primary w-full"
+                  className="circles-btn-coral"
                 >
                   {claiming
                     ? 'Adding…'
@@ -160,52 +168,65 @@ export default function SplitExpenseSheet({
 
   return (
     <>
-      <div className="overlay" onClick={onClose} />
-      <div className="bottom-sheet max-h-[90dvh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-fraunces text-xl font-semibold text-ink">Split an expense</h3>
-          <button type="button" onClick={onClose} className="text-ink-3 text-2xl">×</button>
+      <div className="circles-overlay" onClick={onClose} />
+      <div className="circles-sheet circles-enter-1">
+        <div className="circles-sheet-indigo-top">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="circles-kicker text-indigo-muted mb-1">Circle split</p>
+              <h3 className="font-fraunces text-xl font-semibold text-ink-on-indigo">Split an expense</h3>
+            </div>
+            <button type="button" onClick={onClose} className="text-ink-on-indigo/50 text-2xl leading-none">×</button>
+          </div>
+
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What was it? (e.g. Dinner)"
+            className="circles-input-indigo mb-3"
+            maxLength={120}
+          />
+
+          <div className="flex items-baseline gap-2 mb-1">
+            <p className="circles-split-hero-amount">{displayAmount}</p>
+          </div>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={`Enter amount (${currency})`}
+            className="circles-input-indigo text-sm"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+          />
+          {previewShare != null && (
+            <p className="text-xs text-ink-on-indigo/55 mt-2">
+              About {formatCurrency(previewShare, currency)} each · {selectedIds.length} people
+            </p>
+          )}
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-          <p className="text-sm font-medium text-ink mb-1">Visible to your circle</p>
+        <div className="circles-notice mb-4 mt-1">
+          <p className="text-sm font-medium text-indigo mb-1">Visible to your circle</p>
           <p className="text-xs text-ink-3 leading-relaxed">
             This split will show the total amount and each person&apos;s share to everyone in this
             circle. Only you choose whether to add your share to your personal expenses.
           </p>
         </div>
 
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="What was it? (e.g. Dinner)"
-          className="input-field mb-3"
-          maxLength={120}
-        />
-
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={`Amount (${currency})`}
-          className="input-field mb-3"
-          inputMode="decimal"
-          min="0"
-          step="0.01"
-        />
-
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="input-field mb-4"
+          className="circles-input mb-4"
         >
           {EXPENSE_CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
 
-        <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-2">
+        <p className="text-xs font-semibold text-indigo/50 uppercase tracking-wide mb-2">
           Split between
         </p>
         <div className="flex flex-col gap-2 mb-4 max-h-40 overflow-y-auto">
@@ -214,17 +235,15 @@ export default function SplitExpenseSheet({
             return (
               <label
                 key={m.user_id}
-                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer ${
-                  checked ? 'bg-saffron-soft' : 'bg-cream'
-                }`}
+                className={`circles-member-row ${checked ? 'circles-member-row-selected' : 'circles-member-row-unselected'}`}
               >
                 <input
                   type="checkbox"
                   checked={checked}
                   onChange={() => toggleMember(m.user_id)}
-                  className="w-4 h-4 accent-saffron"
+                  className="w-4 h-4 accent-indigo"
                 />
-                <span className="text-sm font-medium text-ink">
+                <span className="text-sm font-medium text-indigo">
                   {memberLabel(m)}
                   {m.user_id === currentUserId ? ' (you)' : ''}
                 </span>
@@ -233,19 +252,13 @@ export default function SplitExpenseSheet({
           })}
         </div>
 
-        {previewShare != null && (
-          <p className="text-xs text-ink-3 mb-3">
-            About {formatCurrency(previewShare, currency)} each (equal split)
-          </p>
-        )}
-
         {error && <p className="text-xs text-danger mb-3">{error}</p>}
 
         <button
           type="button"
           onClick={handleCreate}
           disabled={submitting}
-          className="btn-primary"
+          className="circles-btn-coral"
         >
           {submitting ? 'Sharing…' : 'Share split with circle'}
         </button>

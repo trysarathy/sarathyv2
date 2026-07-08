@@ -183,19 +183,21 @@ export default function CirclePage() {
 
     return (
       <div key={moment.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
-        <div className={`max-w-xs rounded-2xl p-3 ${isMe ? 'bg-saffron text-white' : 'bg-white shadow-sm'}`}>
+        <div className={`circles-moment circles-moment-split ${isMe ? 'circles-moment-split-mine' : 'circles-moment-theirs'}`}>
           <div className="flex items-start gap-2 mb-1">
             <span className="text-lg shrink-0">🍽️</span>
             <div>
-              <p className={`text-sm font-medium ${isMe ? 'text-white' : 'text-ink'}`}>
-                {senderName} added {content.description}{' '}
+              <p className={`circles-moment-letter ${isMe ? 'text-ink-on-indigo' : 'text-indigo'}`}>
+                {senderName} added {content.description}
+              </p>
+              <p className={`font-fraunces text-xl font-light mt-1 ${isMe ? 'text-gold' : 'text-indigo'}`}>
                 {formatCurrency(content.total_amount, content.currency)}
               </p>
-              <p className={`text-xs mt-0.5 ${isMe ? 'text-white/70' : 'text-ink-3'}`}>
+              <p className={`text-xs mt-0.5 ${isMe ? 'text-ink-on-indigo/55' : 'text-ink-3'}`}>
                 Split {content.split_count} ways
               </p>
               {isParticipant && (
-                <p className={`text-xs mt-1 font-semibold ${isMe ? 'text-white' : 'text-ink'}`}>
+                <p className={`text-xs mt-1.5 font-semibold ${isMe ? 'text-ink-on-indigo/90' : 'text-indigo'}`}>
                   Your share: {formatCurrency(myShare, content.currency)}
                 </p>
               )}
@@ -204,19 +206,19 @@ export default function CirclePage() {
 
           {isParticipant && (
             claimed ? (
-              <p className={`text-xs mt-2 font-medium ${isMe ? 'text-white/90' : 'text-safe'}`}>
-                ✓ Added to your expenses
+              <p className={`text-xs mt-2 font-medium flex items-center gap-1 ${isMe ? 'text-gold' : 'text-safe'}`}>
+                <span>✓</span> Added to your expenses
               </p>
             ) : (
               <button
                 type="button"
                 onClick={() => handleClaimFromFeed(moment.id)}
                 disabled={claimingId === moment.id}
-                className={`mt-2 w-full py-2 rounded-xl text-xs font-semibold ${
+                className={`mt-2 w-full py-2 rounded-xl text-xs font-semibold disabled:opacity-50 ${
                   isMe
-                    ? 'bg-white text-saffron'
-                    : 'bg-saffron-soft text-saffron'
-                } disabled:opacity-50`}
+                    ? 'bg-white/12 text-ink-on-indigo border border-white/20'
+                    : 'bg-indigo/5 text-indigo border border-indigo/10'
+                }`}
               >
                 {claimingId === moment.id
                   ? 'Adding…'
@@ -233,10 +235,10 @@ export default function CirclePage() {
                   key={emoji}
                   type="button"
                   onClick={() => handleReact(moment.id, emoji, moment.reactions || [])}
-                  className={`text-sm px-2 py-0.5 rounded-full transition-colors ${
+                  className={`circles-reaction ${
                     count > 0
-                      ? 'bg-saffron-soft text-ink'
-                      : isMe ? 'bg-white/20 text-white' : 'bg-cream text-ink-3'
+                      ? 'bg-gold/15 text-indigo'
+                      : isMe ? 'bg-white/10 text-ink-on-indigo/70' : 'bg-indigo/5 text-ink-3'
                   }`}
                 >
                   {emoji}{count > 0 ? ` ${count}` : ''}
@@ -244,7 +246,7 @@ export default function CirclePage() {
               )
             })}
           </div>
-          <p className={`text-xs mt-1 ${isMe ? 'text-white/50' : 'text-ink-3'}`}>
+          <p className={`text-xs mt-1.5 ${isMe ? 'text-ink-on-indigo/40' : 'text-ink-3'}`}>
             {new Date(moment.created_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
@@ -266,15 +268,15 @@ export default function CirclePage() {
 
     return (
       <div key={moment.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
-        <div className={`max-w-xs rounded-2xl p-3 ${isMe ? 'bg-saffron text-white' : 'bg-white shadow-sm'}`}>
+        <div className={`circles-moment ${isMe ? 'circles-moment-mine' : 'circles-moment-theirs'}`}>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">{emojis[moment.type] || '💰'}</span>
-            <p className={`text-sm font-medium ${isMe ? 'text-white' : 'text-ink'}`}>
+            <p className={`circles-moment-letter ${isMe ? 'text-ink-on-indigo' : 'text-indigo'}`}>
               {content.message}
             </p>
           </div>
           {content.streak != null && (
-            <p className={`text-xs ${isMe ? 'text-white/70' : 'text-ink-3'}`}>
+            <p className={`text-xs mt-0.5 ${isMe ? 'text-ink-on-indigo/55' : 'text-ink-3'}`}>
               {content.streak} days
             </p>
           )}
@@ -286,10 +288,10 @@ export default function CirclePage() {
                   key={emoji}
                   type="button"
                   onClick={() => handleReact(moment.id, emoji, moment.reactions || [])}
-                  className={`text-sm px-2 py-0.5 rounded-full transition-colors ${
+                  className={`circles-reaction ${
                     count > 0
-                      ? 'bg-saffron-soft text-ink'
-                      : isMe ? 'bg-white/20 text-white' : 'bg-cream text-ink-3'
+                      ? 'bg-gold/15 text-indigo'
+                      : isMe ? 'bg-white/10 text-ink-on-indigo/70' : 'bg-indigo/5 text-ink-3'
                   }`}
                 >
                   {emoji}{count > 0 ? ` ${count}` : ''}
@@ -297,7 +299,7 @@ export default function CirclePage() {
               )
             })}
           </div>
-          <p className={`text-xs mt-1 ${isMe ? 'text-white/50' : 'text-ink-3'}`}>
+          <p className={`text-xs mt-1.5 ${isMe ? 'text-ink-on-indigo/40' : 'text-ink-3'}`}>
             {new Date(moment.created_at).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
@@ -306,35 +308,44 @@ export default function CirclePage() {
   }
 
   if (loading) return (
-    <div className="min-h-dvh bg-cream flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-saffron border-t-transparent rounded-full animate-spin" />
+    <div className="circles-page flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-indigo border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
   return (
-    <div className="min-h-dvh bg-cream flex flex-col">
-      <div className="px-5 pt-12 pb-3 bg-cream border-b border-cream-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => router.push('/circles')} className="text-ink-3 text-xl">←</button>
-            <div>
-              <h1 className="font-fraunces text-lg font-semibold text-ink">{circle?.name}</h1>
-              <p className="text-ink-3 text-xs">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+    <div className="circles-page flex flex-col">
+      <div className="circles-header-zone circles-enter-1">
+        <div className="circles-header-inner !pt-12 !pb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => router.push('/circles')}
+                className="text-ink-on-indigo/60 text-xl shrink-0"
+              >
+                ←
+              </button>
+              <div className="min-w-0">
+                <h1 className="font-fraunces text-xl font-semibold text-ink-on-indigo truncate">{circle?.name}</h1>
+                <p className="circles-subtitle !text-xs !mt-0.5">
+                  {members.length} member{members.length !== 1 ? 's' : ''}
+                </p>
+              </div>
             </div>
+            <button type="button" onClick={copyInviteCode} className="circles-code-pill shrink-0">
+              {copied ? 'Copied ✓' : circle?.invite_code}
+            </button>
           </div>
-          <button type="button" onClick={copyInviteCode}
-            className="text-xs font-medium px-3 py-1.5 rounded-xl bg-saffron-soft text-saffron">
-            {copied ? 'Copied! ✓' : `Code: ${circle?.invite_code}`}
-          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-44">
+      <div className="circles-feed-zone circles-enter-2">
         {moments.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-3xl mb-3">🌸</p>
-            <p className="font-medium text-ink mb-1">Nothing shared yet</p>
-            <p className="text-ink-3 text-sm">
+          <div className="circles-empty">
+            <p className="circles-empty-icon">🌸</p>
+            <p className="font-fraunces text-lg font-medium text-indigo mb-1">Nothing shared yet</p>
+            <p className="text-ink-3 text-sm leading-relaxed max-w-xs mx-auto">
               Share a money moment or split an expense with your circle.
             </p>
           </div>
@@ -349,15 +360,15 @@ export default function CirclePage() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="fixed bottom-16 left-0 right-0 px-5 pb-2 flex flex-col gap-2">
+      <div className="circles-action-bar">
         <button
           type="button"
           onClick={() => setShowSplit(true)}
-          className="w-full py-3.5 rounded-2xl text-sm font-semibold bg-white border border-saffron-soft text-saffron"
+          className="circles-btn-indigo-outline !py-3.5 !text-sm"
         >
           Split an expense 🍽️
         </button>
-        <button type="button" onClick={() => setShowShare(true)} className="btn-primary">
+        <button type="button" onClick={() => setShowShare(true)} className="circles-btn-coral">
           Share a moment 🌸
         </button>
       </div>
@@ -375,15 +386,17 @@ export default function CirclePage() {
 
       {showShare && (
         <>
-          <div className="overlay" onClick={() => setShowShare(false)} />
-          <div className="bottom-sheet">
+          <div className="circles-overlay" onClick={() => setShowShare(false)} />
+          <div className="circles-sheet circles-enter-1">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-fraunces text-xl font-semibold text-ink">Share a moment</h3>
-              <button type="button" onClick={() => setShowShare(false)} className="text-ink-3 text-2xl">×</button>
+              <h3 className="font-fraunces text-xl font-semibold text-indigo">Share a moment</h3>
+              <button type="button" onClick={() => setShowShare(false)} className="text-ink-3 text-2xl leading-none">×</button>
             </div>
-            <p className="text-ink-3 text-sm mb-4">
-              These moments stay amount-free — only splits show totals to the circle.
-            </p>
+            <div className="circles-notice mb-5">
+              <p className="text-sm text-indigo leading-relaxed">
+                These moments stay amount-free — only splits show totals to the circle.
+              </p>
+            </div>
             <div className="flex flex-col gap-3">
               {MOMENT_TYPES.map(m => (
                 <button
@@ -391,10 +404,10 @@ export default function CirclePage() {
                   type="button"
                   onClick={() => handleShare(m.type)}
                   disabled={sharing}
-                  className="flex items-center gap-3 p-4 rounded-2xl bg-cream active:bg-saffron-soft transition-colors text-left"
+                  className="circles-share-option disabled:opacity-50"
                 >
                   <span className="text-2xl">{m.emoji}</span>
-                  <p className="font-medium text-ink text-sm">{m.label}</p>
+                  <p className="font-medium text-indigo text-sm">{m.label}</p>
                 </button>
               ))}
             </div>

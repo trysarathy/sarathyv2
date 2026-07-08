@@ -254,42 +254,94 @@ export default function LogExpenseSheet({
 
   return (
     <>
-      <div className="overlay" onClick={onClose} />
-      <div className="bottom-sheet max-h-[85dvh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-fraunces text-xl font-semibold text-ink">Log expense</h3>
-          <div className="flex items-center gap-2">
-            {voiceSupported && (
-              <VoiceMicButton
-                size="sm"
-                listening={isListening}
-                onClick={handleMicToggle}
-                ariaLabel={isListening ? 'Stop listening' : 'Log by voice'}
-              />
-            )}
-            <button type="button" onClick={onClose} className="text-ink-3 text-2xl leading-none">
-              ×
-            </button>
+      <div className="circles-overlay" onClick={onClose} />
+      <div className="log-sheet circles-enter-1">
+        <div className="log-sheet-indigo-top">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="circles-kicker text-indigo-muted mb-1">Quick log</p>
+              <h3 className="font-fraunces text-xl font-semibold text-ink-on-indigo">Log expense</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {voiceSupported && (
+                <VoiceMicButton
+                  size="sm"
+                  listening={isListening}
+                  onClick={handleMicToggle}
+                  ariaLabel={isListening ? 'Stop listening' : 'Log by voice'}
+                />
+              )}
+              <button type="button" onClick={onClose} className="text-ink-on-indigo/50 text-2xl leading-none">
+                ×
+              </button>
+            </div>
           </div>
+
+          <div className="flex gap-2 items-center mb-1">
+            <button
+              type="button"
+              onClick={() => setShowCurrencyPicker(!showCurrencyPicker)}
+              className="log-sheet-currency-btn"
+            >
+              <span className="text-lg">{selectedCurrency.flag}</span>
+              <span className="font-semibold text-sm">{selectedCurrency.code}</span>
+              <span className="text-xs opacity-60">▾</span>
+            </button>
+            <input
+              type="number"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="0.00"
+              className={`log-sheet-amount flex-1 ${prefillFlash ? 'voice-prefill-flash rounded-lg' : ''}`}
+              inputMode="decimal"
+              autoFocus={!startInListeningMode}
+            />
+          </div>
+
+          {showCurrencyPicker && (
+            <div className="log-sheet-currency-picker mt-2">
+              {CURRENCIES.map(c => (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => { setCurrency(c.code); setShowCurrencyPicker(false) }}
+                  className={`log-sheet-currency-row ${currency === c.code ? 'log-sheet-currency-row-selected' : ''}`}
+                >
+                  <span className="text-lg">{c.flag}</span>
+                  <span className="font-medium text-indigo text-sm">{c.code}</span>
+                  <span className="text-xs text-indigo-muted">{c.name}</span>
+                  {currency === c.code && <span className="ml-auto text-gold text-sm">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {currency !== profileCurrency && amount && parseFloat(amount) > 0 && (
+            <div className="log-sheet-convert-notice mt-2">
+              <p className="text-xs text-indigo leading-relaxed">
+                Will convert to {profileCurrencyData.code} {profileCurrencyData.symbol} at live rate
+              </p>
+            </div>
+          )}
         </div>
 
         {voiceSupported && (showVoicePanel || voiceError) && (
-          <div className="mb-4 rounded-2xl bg-cream px-4 py-3">
+          <div className="log-sheet-voice-panel">
             {voicePhase === 'listening' && (
               <div className="flex flex-col items-center text-center gap-2 py-1">
                 <VoiceMicButton listening onClick={handleMicToggle} ariaLabel="Stop listening" />
-                <p className="text-xs font-medium text-coral uppercase tracking-wide">Listening…</p>
-                <p className="text-sm text-ink min-h-[2.5rem] leading-relaxed">
+                <p className="log-sheet-voice-label">Listening…</p>
+                <p className="font-fraunces text-sm text-indigo min-h-[2.5rem] leading-relaxed px-2">
                   {liveTranscript || 'Say something like “Grab twelve fifty”'}
                 </p>
-                <p className="text-[11px] text-ink-3">Tap the mic when you&apos;re done</p>
+                <p className="text-[11px] text-indigo-muted">Tap the mic when you&apos;re done</p>
               </div>
             )}
 
             {voicePhase === 'parsing' && (
               <div className="flex items-center justify-center gap-2 py-3">
-                <span className="w-4 h-4 border-2 border-coral border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-ink-3">Understanding…</p>
+                <span className="w-4 h-4 border-2 border-indigo border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-indigo-muted">Understanding…</p>
               </div>
             )}
 
@@ -299,78 +351,26 @@ export default function LogExpenseSheet({
           </div>
         )}
 
-        {/* Amount + Currency */}
-        <div className="mb-4">
-          <div className="flex gap-2 items-center mb-2">
-            <button
-              type="button"
-              onClick={() => setShowCurrencyPicker(!showCurrencyPicker)}
-              className="flex items-center gap-1.5 px-3 py-2.5 bg-cream rounded-xl border-2 border-transparent active:border-saffron transition-colors flex-shrink-0"
-            >
-              <span className="text-lg">{selectedCurrency.flag}</span>
-              <span className="font-semibold text-ink text-sm">{selectedCurrency.code}</span>
-              <span className="text-ink-3 text-xs">▾</span>
-            </button>
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="0.00"
-              className={`input-field flex-1 text-2xl font-fraunces ${prefillFlash ? 'voice-prefill-flash rounded-xl' : ''}`}
-              inputMode="decimal"
-              autoFocus={!startInListeningMode}
-            />
-          </div>
-
-          {showCurrencyPicker && (
-            <div className="bg-white rounded-2xl border border-cream-3 shadow-lg max-h-48 overflow-y-auto mb-2">
-              {CURRENCIES.map(c => (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => { setCurrency(c.code); setShowCurrencyPicker(false) }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left border-b border-cream last:border-0 transition-colors ${
-                    currency === c.code ? 'bg-saffron-soft' : 'hover:bg-cream'
-                  }`}
-                >
-                  <span className="text-lg">{c.flag}</span>
-                  <span className="font-medium text-ink text-sm">{c.code}</span>
-                  <span className="text-xs text-ink-3">{c.name}</span>
-                  {currency === c.code && <span className="ml-auto text-saffron text-sm">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {currency !== profileCurrency && amount && parseFloat(amount) > 0 && (
-            <div className="bg-saffron-soft rounded-xl px-3 py-2 mt-1">
-              <p className="text-xs text-ink-3">
-                Will be converted to {profileCurrencyData.code} {profileCurrencyData.symbol} at live rate and added to your budget
-              </p>
-            </div>
-          )}
-        </div>
-
         <input
           type="text"
           value={description}
           onChange={e => setDescription(e.target.value)}
           placeholder="What was this for? (optional)"
-          className={`input-field mb-4 ${prefillFlash ? 'voice-prefill-flash rounded-xl' : ''}`}
+          className={`log-sheet-input mb-4 ${prefillFlash ? 'voice-prefill-flash' : ''}`}
         />
 
         <div className="mb-4">
-          <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-2">Category</p>
+          <p className="log-sheet-section-kicker">Category</p>
           <div className={`grid grid-cols-5 gap-2 rounded-xl ${prefillFlash ? 'voice-prefill-flash p-1 -m-1' : ''}`}>
             {CATEGORIES.map(cat => (
               <button
                 key={cat.value}
                 type="button"
                 onClick={() => setCategory(cat.value)}
-                className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors ${
+                className={`log-sheet-category ${
                   category === cat.value
-                    ? 'bg-saffron text-white'
-                    : 'bg-cream text-ink'
+                    ? 'log-sheet-category-selected'
+                    : 'log-sheet-category-unselected'
                 }`}
               >
                 <span className="text-lg">{cat.emoji}</span>
@@ -381,7 +381,7 @@ export default function LogExpenseSheet({
         </div>
 
         <div className="mb-5">
-          <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-2">
+          <p className="log-sheet-section-kicker">
             How are you feeling? (optional)
           </p>
           <div className="flex gap-2">
@@ -390,8 +390,8 @@ export default function LogExpenseSheet({
                 key={m.value}
                 type="button"
                 onClick={() => setMood(mood === m.value ? '' : m.value)}
-                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors ${
-                  mood === m.value ? 'bg-saffron text-white' : 'bg-cream text-ink'
+                className={`log-sheet-mood ${
+                  mood === m.value ? 'log-sheet-mood-selected' : 'log-sheet-mood-unselected'
                 }`}
               >
                 <span className="text-xl">{m.emoji}</span>
@@ -411,7 +411,7 @@ export default function LogExpenseSheet({
           type="button"
           ref={saveButtonRef}
           onClick={handleSave}
-          className="btn-primary"
+          className="log-sheet-save"
           disabled={saving || !amount || parseFloat(amount) <= 0}
         >
           {saving

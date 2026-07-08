@@ -125,180 +125,180 @@ export default function ProfilePage() {
 
   if (loading || !profile) {
     return (
-      <div className="min-h-dvh bg-cream flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-saffron border-t-transparent rounded-full animate-spin" />
+      <div className="profile-page flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-dvh bg-cream pb-24 px-5 pt-12">
-      <h1 className="font-fraunces text-2xl font-semibold text-ink mb-6">My profile</h1>
+    <div className="profile-page">
+      <header className="profile-header-zone profile-enter-1">
+        <div className="profile-header-inner">
+          <p className="circles-kicker mb-1">Account</p>
+          <h1 className="profile-title">My profile</h1>
+        </div>
+      </header>
 
-      <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-saffron-soft rounded-full flex items-center justify-center text-2xl">
-            🌸
-          </div>
-          <div>
-            <p className="font-semibold text-ink">{profile.name}</p>
-            <p className="text-ink-3 text-xs">{getLevelName(profile.total_xp)}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center">
-            <p className="font-fraunces text-xl font-semibold text-ink">{profile.daily_login_streak}</p>
-            <p className="text-xs text-ink-3">day streak 🔥</p>
-          </div>
-          <div className="text-center">
-            <p className="font-fraunces text-xl font-semibold text-ink">{profile.total_xp}</p>
-            <p className="text-xs text-ink-3">total XP ⚡</p>
-          </div>
-          <div className="text-center">
-            <p className="font-fraunces text-xl font-semibold text-ink">
-              {profile.planning_amount ? formatCurrency(profile.planning_amount, currency) : '—'}
-            </p>
-            <p className="text-xs text-ink-3">monthly plan</p>
-          </div>
-        </div>
-        <div className="flex gap-2 mt-4 pt-4 border-t border-cream">
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={planningAmount}
-            onChange={(e) => setPlanningAmount(e.target.value)}
-            placeholder="Monthly plan amount"
-            className="input-field flex-1 py-2 text-sm"
-          />
-          <button
-            type="button"
-            onClick={handlePlanningSave}
-            disabled={savingPlan}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-saffron disabled:opacity-50 shrink-0"
-          >
-            Update plan
-          </button>
-        </div>
-      </div>
-
-      <div className="card mb-4">
-        <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">
-          🛡️ Savings dream
-        </p>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={goalName}
-            onChange={(e) => setGoalName(e.target.value)}
-            placeholder="Name (e.g. Bali fund)"
-            maxLength={80}
-            className="input-field flex-[2] py-2.5 text-sm min-w-0"
-          />
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={savingsGoal}
-            onChange={(e) => {
-              setMonthlyTouched(true)
-              setSavingsGoal(e.target.value)
-            }}
-            placeholder="/ month"
-            className="input-field flex-1 py-2.5 text-sm min-w-[4.5rem]"
-          />
-        </div>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={targetAmount}
-            onChange={(e) => setTargetAmount(e.target.value)}
-            placeholder="How much in total?"
-            className="input-field flex-1 py-2.5 text-sm min-w-0"
-          />
-          <input
-            type="date"
-            value={targetDate}
-            onChange={(e) => setTargetDate(e.target.value)}
-            className="input-field flex-1 py-2.5 text-sm min-w-0"
-            aria-label="By when?"
-          />
-          <button
-            type="button"
-            onClick={handleSavingsGoalSave}
-            disabled={savingGoal}
-            className="px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-saffron disabled:opacity-50 shrink-0"
-          >
-            Save
-          </button>
-        </div>
-        {suggestion && !monthlyTouched && (
-          <p className="text-xs text-ink-3 mb-2">
-            Suggested {formatCurrency(suggestion.suggested, currency)}/mo to hit{' '}
-            {formatCurrency(suggestion.target, currency)} by{' '}
-            {new Date(`${targetDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-          </p>
-        )}
-        <p className="text-xs text-ink-3">
-          Sarathy treats the monthly amount as already set aside — your safe-to-spend won&apos;t touch it. Set monthly to 0 to turn off.
-        </p>
-        {goalSaved && (
-          <p className="text-xs text-safe mt-2 font-medium">Saved ✓</p>
-        )}
-      </div>
-
-      <div className="card mb-4">
-        <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">
-          💱 Primary currency
-        </p>
-        <CurrencySelector
-          value={getProfileDisplayCurrency(profile)}
-          onChange={handleCurrencyChange}
-          allowedCodes={[...LIFE_CURRENCIES]}
-        />
-        <p className="text-xs text-ink-3 mt-2">
-          Your safe-to-spend and all expenses display in this currency. You can log in any currency and we convert automatically.
-        </p>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
-        {[
-          { label: 'Companion vibe', value: profile.companion_vibe?.replace(/_/g, ' ') || 'calm mentor', emoji: '🧘' },
-          { label: 'Home country', value: profile.home_country || 'Not set', emoji: '🌍' },
-          { label: 'Responsible for', value: profile.responsible_for || 'Not set', emoji: '❤️' },
-          { label: 'Money fear', value: profile.money_fear || 'Not set', emoji: '🧠' },
-        ].map((item, i) => (
-          <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-cream last:border-0">
-            <div className="flex items-center gap-2">
-              <span>{item.emoji}</span>
-              <span className="text-sm text-ink">{item.label}</span>
+      <div className="profile-body profile-enter-2">
+        <div className="profile-card">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="profile-avatar">🌸</div>
+            <div>
+              <p className="font-semibold text-indigo">{profile.name}</p>
+              <p className="text-indigo-muted text-xs">{getLevelName(profile.total_xp)}</p>
             </div>
-            <span className="text-sm text-ink-3 capitalize">{item.value}</span>
           </div>
-        ))}
-      </div>
+          <div className="profile-stat-grid">
+            <div className="profile-stat profile-stat-highlight">
+              <p className="profile-stat-value">{profile.daily_login_streak}</p>
+              <p className="profile-stat-label">day streak 🔥</p>
+            </div>
+            <div className="profile-stat">
+              <p className="profile-stat-value">{profile.total_xp}</p>
+              <p className="profile-stat-label">total XP ⚡</p>
+            </div>
+            <div className="profile-stat">
+              <p className="profile-stat-value text-base">
+                {profile.planning_amount ? formatCurrency(profile.planning_amount, currency) : '—'}
+              </p>
+              <p className="profile-stat-label">monthly plan</p>
+            </div>
+          </div>
+          <div className="profile-divider">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={planningAmount}
+                onChange={(e) => setPlanningAmount(e.target.value)}
+                placeholder="Monthly plan amount"
+                className="profile-input flex-1"
+              />
+              <button
+                type="button"
+                onClick={handlePlanningSave}
+                disabled={savingPlan}
+                className="profile-btn-indigo"
+              >
+                Update plan
+              </button>
+            </div>
+          </div>
+        </div>
 
-      <div className="flex flex-col gap-3 mb-4">
-        <a href="/mydata" className="card flex items-center justify-between active:opacity-70">
+        <div className="profile-dream-card">
+          <p className="profile-dream-title">🛡️ Savings dream</p>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={goalName}
+              onChange={(e) => setGoalName(e.target.value)}
+              placeholder="Name (e.g. Bali fund)"
+              maxLength={80}
+              className="profile-input flex-[2] min-w-0"
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={savingsGoal}
+              onChange={(e) => {
+                setMonthlyTouched(true)
+                setSavingsGoal(e.target.value)
+              }}
+              placeholder="/ month"
+              className="profile-input flex-1 min-w-[4.5rem]"
+            />
+          </div>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(e.target.value)}
+              placeholder="How much in total?"
+              className="profile-input flex-1 min-w-0"
+            />
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="profile-input flex-1 min-w-0"
+              aria-label="By when?"
+            />
+            <button
+              type="button"
+              onClick={handleSavingsGoalSave}
+              disabled={savingGoal}
+              className="profile-btn-coral"
+            >
+              Save
+            </button>
+          </div>
+          {suggestion && !monthlyTouched && (
+            <p className="text-xs text-indigo-muted mb-2 leading-relaxed">
+              Suggested {formatCurrency(suggestion.suggested, currency)}/mo to hit{' '}
+              {formatCurrency(suggestion.target, currency)} by{' '}
+              {new Date(`${targetDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            </p>
+          )}
+          <p className="text-xs text-ink-3 leading-relaxed">
+            Sarathy treats the monthly amount as already set aside — your safe-to-spend won&apos;t touch it. Set monthly to 0 to turn off.
+          </p>
+          {goalSaved && (
+            <p className="text-xs text-safe mt-2 font-medium flex items-center gap-1">
+              <span className="text-gold">✓</span> Saved
+            </p>
+          )}
+        </div>
+
+        <div className="profile-card">
+          <p className="profile-section-kicker">💱 Primary currency</p>
+          <CurrencySelector
+            value={getProfileDisplayCurrency(profile)}
+            onChange={handleCurrencyChange}
+            allowedCodes={[...LIFE_CURRENCIES]}
+          />
+          <p className="text-xs text-ink-3 mt-2 leading-relaxed">
+            Your safe-to-spend and all expenses display in this currency. You can log in any currency and we convert automatically.
+          </p>
+        </div>
+
+        <div className="profile-settings-list">
+          {[
+            { label: 'Companion vibe', value: profile.companion_vibe?.replace(/_/g, ' ') || 'calm mentor', emoji: '🧘' },
+            { label: 'Home country', value: profile.home_country || 'Not set', emoji: '🌍' },
+            { label: 'Responsible for', value: profile.responsible_for || 'Not set', emoji: '❤️' },
+            { label: 'Money fear', value: profile.money_fear || 'Not set', emoji: '🧠' },
+          ].map((item, i) => (
+            <div key={i} className="profile-settings-row">
+              <div className="profile-settings-label">
+                <span>{item.emoji}</span>
+                <span>{item.label}</span>
+              </div>
+              <span className="profile-settings-value">{item.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <a href="/mydata" className="profile-nav-row">
           <div className="flex items-center gap-3">
             <span className="text-xl">📊</span>
             <div>
-              <p className="font-medium text-ink text-sm">My data</p>
-              <p className="text-ink-3 text-xs">Your profile · Behaviour · Benchmarks</p>
+              <p className="font-medium text-indigo text-sm">My data</p>
+              <p className="text-indigo-muted text-xs">Your profile · Behaviour · Benchmarks</p>
             </div>
           </div>
-          <span className="text-ink-3">→</span>
+          <span className="text-indigo/30 text-lg">→</span>
         </a>
-      </div>
 
-      <button
-        onClick={handleSignOut}
-        className="w-full py-3.5 rounded-2xl text-sm font-medium text-danger bg-red-50 border border-red-100"
-      >
-        Sign out
-      </button>
+        <button type="button" onClick={handleSignOut} className="profile-sign-out">
+          Sign out
+        </button>
+      </div>
 
       <TabBar active="profile" />
     </div>

@@ -34,39 +34,39 @@ export default function CurrencySelector({ value, onChange, label, allowedCodes 
   return (
     <div className="relative">
       {label && (
-        <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-2">{label}</p>
+        <p className="profile-section-kicker">{label}</p>
       )}
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="input-field flex items-center justify-between w-full"
+        className="profile-currency-trigger"
       >
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{selected.flag}</span>
-          <span className="font-medium text-ink">{selected.code}</span>
-          <span className="text-ink-3 text-sm">— {selected.name}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xl shrink-0">{selected.flag}</span>
+          <span className="font-semibold text-indigo text-sm">{selected.code}</span>
+          <span className="text-indigo-muted text-sm truncate">— {selected.name}</span>
         </div>
-        <span className="text-ink-3">{open ? '↑' : '↓'}</span>
+        <span className="text-indigo-muted text-sm shrink-0 ml-2">{open ? '↑' : '↓'}</span>
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl z-50 max-h-72 overflow-y-auto border border-cream-3">
+          <div className="profile-currency-menu">
             {options.map(c => (
               <button
                 key={c.code}
+                type="button"
                 onClick={() => { onChange(c.code); setOpen(false) }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-cream transition-colors border-b border-cream last:border-0 ${
-                  value === c.code ? 'bg-saffron-soft' : ''
-                }`}
+                className={`profile-currency-option ${value === c.code ? 'profile-currency-option-selected' : ''}`}
               >
                 <span className="text-xl">{c.flag}</span>
-                <div>
-                  <p className="font-medium text-ink text-sm">{c.code}</p>
-                  <p className="text-xs text-ink-3">{c.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-indigo text-sm">{c.code}</p>
+                  <p className="text-xs text-indigo-muted">{c.name}</p>
                 </div>
-                <span className="ml-auto text-sm font-semibold text-ink-3">{c.symbol}</span>
-                {value === c.code && <span className="text-saffron text-sm">✓</span>}
+                <span className="text-sm font-semibold text-indigo-muted">{c.symbol}</span>
+                {value === c.code && <span className="text-gold text-sm">✓</span>}
               </button>
             ))}
           </div>
