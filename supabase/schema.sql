@@ -8,7 +8,7 @@
 -- → triggers → RLS). Existing projects: use individual ALTER statements instead
 -- of CREATE TABLE when tables already exist.
 --
--- Last updated: 2026-07-06 (protected savings: monthly_savings_goal on profiles)
+-- Last updated: 2026-07-08 (goal_name on profiles for named savings goals)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   quiet_mode_until timestamptz,
   monthly_savings_goal numeric NOT NULL DEFAULT 0 CHECK (monthly_savings_goal >= 0),
   savings_goal_prompt_dismissed boolean NOT NULL DEFAULT false,
+  goal_name text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -57,6 +58,7 @@ COMMENT ON TABLE public.profiles IS 'User profile and onboarding preferences; id
 COMMENT ON COLUMN public.profiles.secondary_currency IS 'Used by future/page.tsx for INR home-cost comparisons';
 COMMENT ON COLUMN public.profiles.monthly_savings_goal IS 'Monthly amount reserved before safe-to-spend; 0 = disabled';
 COMMENT ON COLUMN public.profiles.savings_goal_prompt_dismissed IS 'Home savings prompt dismissed; also true when user sets a goal';
+COMMENT ON COLUMN public.profiles.goal_name IS 'Optional name for monthly_savings_goal (e.g. Bali fund)';
 
 -- -----------------------------------------------------------------------------
 -- budget_entries
@@ -479,3 +481,6 @@ ALTER TABLE public.conversation_summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS monthly_savings_goal numeric NOT NULL DEFAULT 0
   CHECK (monthly_savings_goal >= 0);
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS savings_goal_prompt_dismissed boolean NOT NULL DEFAULT false;
+
+-- Named savings goal (2026-07-08)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goal_name text;

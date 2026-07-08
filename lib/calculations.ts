@@ -77,6 +77,7 @@ export function calculateSafeToSpend(
     currency,
     savings: {
       monthlyGoal: savingsGoal,
+      goalName: profile.goal_name?.trim() || null,
       status: savingsStatus,
       stillPossible,
     },

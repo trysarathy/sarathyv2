@@ -24,12 +24,17 @@ export async function POST(req: NextRequest) {
     }
 
     const goal = Math.max(0, Math.round(Number(body.goal) || 0))
+    const goalName =
+      typeof body.goalName === 'string' && body.goalName.trim()
+        ? body.goalName.trim().slice(0, 80)
+        : null
 
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
         monthly_savings_goal: goal,
         savings_goal_prompt_dismissed: true,
+        goal_name: goal > 0 ? goalName : null,
       })
       .eq('id', user.id)
 

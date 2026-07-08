@@ -24,6 +24,7 @@ export interface Profile {
   quiet_mode_until: string | null
   monthly_savings_goal?: number
   savings_goal_prompt_dismissed?: boolean
+  goal_name?: string | null
   created_at: string
 }
 
@@ -104,6 +105,7 @@ export interface SafeToSpendData {
   currency: string
   savings: {
     monthlyGoal: number
+    goalName: string | null
     status: SavingsProtectionStatus
     stillPossible: number | null
   }

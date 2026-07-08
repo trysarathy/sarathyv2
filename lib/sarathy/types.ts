@@ -40,6 +40,7 @@ export interface CompanionContext {
     spentToday: number
     savings: {
       monthlyGoal: number
+      goalName: string | null
       status: 'none' | 'protected' | 'at_risk'
       stillPossible: number | null
     }

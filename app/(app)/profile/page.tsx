@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingsGoal, setSavingsGoal] = useState('')
+  const [goalName, setGoalName] = useState('')
   const [savingGoal, setSavingGoal] = useState(false)
   const [goalSaved, setGoalSaved] = useState(false)
 
@@ -25,6 +26,7 @@ export default function ProfilePage() {
     if (data) {
       setProfile(data as Profile)
       setSavingsGoal(String((data as Profile).monthly_savings_goal ?? 0))
+      setGoalName((data as Profile).goal_name ?? '')
     }
     setLoading(false)
   }
@@ -48,11 +50,12 @@ export default function ProfilePage() {
     setSavingGoal(true)
     setGoalSaved(false)
     try {
-      await saveMonthlySavingsGoal(parsed)
+      await saveMonthlySavingsGoal(parsed, goalName)
       setProfile(prev => prev ? {
         ...prev,
         monthly_savings_goal: parsed,
         savings_goal_prompt_dismissed: true,
+        goal_name: goalName.trim() || null,
       } : prev)
       setSavingsGoal(String(parsed))
       setGoalSaved(true)
@@ -106,19 +109,29 @@ export default function ProfilePage() {
         <p className="text-xs font-medium text-ink-3 uppercase tracking-wide mb-3">
           🛡️ Monthly savings goal
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={goalName}
+            onChange={(e) => setGoalName(e.target.value)}
+            placeholder="Name (e.g. Bali fund)"
+            maxLength={80}
+            className="input-field flex-[2] py-2.5 text-sm min-w-0"
+          />
           <input
             type="number"
             min="0"
             step="1"
             value={savingsGoal}
             onChange={(e) => setSavingsGoal(e.target.value)}
-            className="input-field flex-1 py-2.5 text-sm"
+            placeholder="Amount"
+            className="input-field flex-1 py-2.5 text-sm min-w-[4.5rem]"
           />
           <button
+            type="button"
             onClick={handleSavingsGoalSave}
             disabled={savingGoal}
-            className="px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-saffron disabled:opacity-50"
+            className="px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-saffron disabled:opacity-50 shrink-0"
           >
             Save
           </button>

@@ -74,13 +74,18 @@ export default function SafeToSpendHero({
           {safeData.savings.status === 'protected' && (
             <p className="text-ink-on-indigo/80 text-xs font-medium">
               <span className="text-gold">🛡️</span>{' '}
-              {formatCurrency(safeData.savings.monthlyGoal, currency)} savings protected this month
+              {safeData.savings.goalName
+                ? `${safeData.savings.goalName}: ${formatCurrency(safeData.savings.monthlyGoal, currency)} protected`
+                : `${formatCurrency(safeData.savings.monthlyGoal, currency)} savings protected this month`}
             </p>
           )}
           {safeData.savings.status === 'at_risk' && safeData.savings.stillPossible !== null && (
             <p className="text-amber-300/90 text-xs font-medium">
               ⚠️ {formatCurrency(safeData.savings.stillPossible, currency)} of your{' '}
-              {formatCurrency(safeData.savings.monthlyGoal, currency)} savings goal still possible
+              {safeData.savings.goalName
+                ? `${safeData.savings.goalName} (${formatCurrency(safeData.savings.monthlyGoal, currency)})`
+                : formatCurrency(safeData.savings.monthlyGoal, currency)}{' '}
+              still possible
             </p>
           )}
         </div>

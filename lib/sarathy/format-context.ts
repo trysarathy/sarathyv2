@@ -49,11 +49,14 @@ function formatSync(ctx: CompanionContext): string {
 function formatSavings(ctx: CompanionContext, currency: string): string | null {
   const { savings } = ctx.today
   if (savings.monthlyGoal <= 0) return null
+  const namePrefix = savings.goalName ? `${savings.goalName}: ` : ''
+  const amount = formatCurrency(savings.monthlyGoal, currency)
   if (savings.status === 'protected') {
-    return `savings ${formatCurrency(savings.monthlyGoal, currency)}/month protected`
+    return `savings ${namePrefix}${amount}/month protected`
   }
   if (savings.status === 'at_risk' && savings.stillPossible !== null) {
-    return `savings at risk — ${formatCurrency(savings.stillPossible, currency)} of ${formatCurrency(savings.monthlyGoal, currency)} still possible if spending stays light`
+    const nameLabel = savings.goalName ? `"${savings.goalName}" ` : ''
+    return `savings at risk — ${formatCurrency(savings.stillPossible, currency)} of ${nameLabel}${amount} still possible if spending stays light`
   }
   return null
 }

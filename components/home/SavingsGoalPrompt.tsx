@@ -12,6 +12,7 @@ interface Props {
 
 export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
   const [amount, setAmount] = useState('')
+  const [goalName, setGoalName] = useState('')
   const [saving, setSaving] = useState(false)
 
   const show =
@@ -25,7 +26,7 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
     if (!parsed || parsed <= 0) return
     setSaving(true)
     try {
-      await saveMonthlySavingsGoal(parsed)
+      await saveMonthlySavingsGoal(parsed, goalName)
       onUpdated()
     } finally {
       setSaving(false)
@@ -51,7 +52,15 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
         Set a goal and your safe-to-spend will already set that money aside.
       </p>
 
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-2">
+        <input
+          type="text"
+          value={goalName}
+          onChange={(e) => setGoalName(e.target.value)}
+          placeholder="Name (e.g. Bali fund)"
+          maxLength={80}
+          className="home-savings-input flex-[2] min-w-0"
+        />
         <input
           type="number"
           min="1"
@@ -59,7 +68,7 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="150"
-          className="home-savings-input flex-1"
+          className="home-savings-input flex-1 min-w-[4.5rem]"
         />
         <button
           type="button"
