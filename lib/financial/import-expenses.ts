@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { FinancialTransaction } from './types'
 import type { BudgetEntry } from '@/types'
+import { friendlySyncError } from '@/lib/booth/friendly-errors'
 
 export function dedupKey(date: string, description: string, amount: number): string {
   return `${date}|${description.trim().toLowerCase()}|${amount.toFixed(2)}`
@@ -80,13 +81,7 @@ export function inferCategory(description: string): string {
 }
 
 export function formatSyncError(err: unknown): string {
-  if (err && typeof err === 'object') {
-    const e = err as { message?: string; details?: string; hint?: string }
-    const parts = [e.message, e.details, e.hint].filter(Boolean)
-    if (parts.length) return parts.join(' — ')
-  }
-  if (err instanceof Error) return err.message
-  return 'Sync failed'
+  return friendlySyncError(err)
 }
 
 export interface SyncExpensesResult {

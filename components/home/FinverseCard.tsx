@@ -8,6 +8,10 @@ import type { FinancialBalance, FinancialTransaction } from '@/lib/financial/typ
 import type { Profile, BudgetEntry } from '@/types'
 import { syncExpensesToBudget, formatSyncError } from '@/lib/financial/import-expenses'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
+import {
+  friendlyBankLoadError,
+  friendlyFinverseLinkError,
+} from '@/lib/booth/friendly-errors'
 
 interface Props {
   profile: Profile
@@ -74,7 +78,7 @@ export default function FinverseCard({
       const res = await fetch('/api/finverse/status', { headers: await getAuthHeaders() })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Could not load bank status')
+        setError(friendlyBankLoadError())
         setConnected(false)
         return
       }
@@ -89,7 +93,7 @@ export default function FinverseCard({
         setTransactions([])
       }
     } catch {
-      setError('Could not connect to bank service')
+      setError(friendlyBankLoadError())
       setConnected(false)
     } finally {
       setLoading(false)
@@ -107,7 +111,7 @@ export default function FinverseCard({
     } else if (finverse === 'error') {
       const reason = searchParams.get('reason')
       setLinkBanner('')
-      setError(reason ? `Bank link failed: ${reason}` : 'Bank link failed — please try again')
+      setError(friendlyFinverseLinkError(reason))
       router.replace('/home', { scroll: false })
     }
   }, [searchParams, loadStatus, router])
@@ -120,13 +124,13 @@ export default function FinverseCard({
       const res = await fetch('/api/finverse/link', { headers: await getAuthHeaders() })
       const data = await res.json()
       if (!res.ok || !data.url) {
-        setError(data.error || 'Could not start bank link')
+        setError(friendlyFinverseLinkError())
         setConnecting(false)
         return
       }
       window.location.href = data.url
     } catch {
-      setError('Could not start bank link')
+      setError(friendlyFinverseLinkError())
       setConnecting(false)
     }
   }
@@ -139,7 +143,10 @@ export default function FinverseCard({
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setError('Sign in again to sync transactions.')
+        return
+      }
 
       const result = await syncExpensesToBudget({
         supabase,
@@ -194,6 +201,10 @@ export default function FinverseCard({
             </button>
           )}
         </div>
+
+        {error && !showDetails && (
+          <p className="text-[10px] text-danger mt-1 leading-snug">{error}</p>
+        )}
 
         {showDetails && (
           <div className="mt-3 pt-2 border-t border-indigo/8">

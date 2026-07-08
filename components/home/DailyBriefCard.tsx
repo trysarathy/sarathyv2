@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { getAuthHeaders } from '@/lib/api-auth'
+import { friendlyBriefError } from '@/lib/booth/friendly-errors'
 
 interface Props {
   firstName?: string
@@ -111,9 +112,14 @@ export default function DailyBriefCard({ firstName }: Props) {
           Hey {firstName} 👋
         </p>
         {loadFailed && (
-          <p className="font-fraunces italic text-[13px] text-indigo-muted mt-3">
-            — Sarathy 🌸
-          </p>
+          <>
+            <p className="text-[13px] text-indigo-muted/90 mt-3 leading-relaxed">
+              {friendlyBriefError()}
+            </p>
+            <p className="font-fraunces italic text-[13px] text-indigo-muted mt-3">
+              — Sarathy 🌸
+            </p>
+          </>
         )}
       </BriefLetter>
     )

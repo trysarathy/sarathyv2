@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Profile, ChatMessage } from '@/types'
 import { getAuthHeaders } from '@/lib/api-auth'
+import { friendlyChatError } from '@/lib/booth/friendly-errors'
 import TabBar from '@/components/ui/TabBar'
 
 const QUICK_CHIPS = ['Can I afford this?', 'My real picture', 'Plan with me', 'Am I okay?']
@@ -80,12 +81,17 @@ export default function SarathyPage() {
         }),
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
+      const reply =
+        typeof data.message === 'string' && data.message.trim()
+          ? data.message.trim()
+          : friendlyChatError()
+
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         user_id: profile.id,
         role: 'assistant',
-        content: data.message || "I'm having a moment — try again in a sec 🌸",
+        content: reply,
         created_at: new Date().toISOString(),
       }
 
@@ -96,7 +102,7 @@ export default function SarathyPage() {
         id: (Date.now() + 1).toString(),
         user_id: profile.id,
         role: 'assistant',
-        content: "I'm having trouble connecting right now — but I'm here. Try again in a moment 🌸",
+        content: friendlyChatError(),
         created_at: new Date().toISOString(),
       }
       setMessages(prev => [...prev, fallbackMsg])

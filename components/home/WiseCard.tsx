@@ -7,6 +7,7 @@ import type { WiseBalance, WiseTransaction, WiseMode } from '@/lib/wise/types'
 import type { Profile, BudgetEntry } from '@/types'
 import { syncExpensesToBudget, formatSyncError } from '@/lib/wise/import-transactions'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
+import { friendlyWiseLoadError } from '@/lib/booth/friendly-errors'
 
 interface Props {
   profile: Profile
@@ -53,14 +54,14 @@ export default function WiseCard({
       const res = await fetch('/api/wise/sync?days=30', { headers: await getAuthHeaders() })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Could not load Wise data')
+        setError(friendlyWiseLoadError())
         return
       }
       setMode(data.mode ?? 'mock')
       setBalances(data.balances ?? [])
       setTransactions(data.transactions ?? [])
     } catch {
-      setError('Could not connect to Wise')
+      setError(friendlyWiseLoadError())
     } finally {
       setLoading(false)
     }
@@ -76,7 +77,10 @@ export default function WiseCard({
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setError('Sign in again to sync transactions.')
+        return
+      }
 
       const result = await syncExpensesToBudget({
         supabase,
@@ -123,6 +127,10 @@ export default function WiseCard({
             {syncing ? '…' : 'Sync'}
           </button>
         </div>
+
+        {error && !showDetails && (
+          <p className="text-[10px] text-danger mt-1 leading-snug">{error}</p>
+        )}
 
         {showDetails && (
           <div className="mt-3 pt-2 border-t border-indigo/8">

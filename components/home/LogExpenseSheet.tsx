@@ -10,6 +10,10 @@ import VoiceMicButton from '@/components/home/VoiceMicButton'
 import { useSpeechRecognition } from '@/lib/voice/speech-recognition'
 import { getAuthHeaders } from '@/lib/api-auth'
 import { Profile } from '@/types'
+import {
+  friendlyExpenseSaveError,
+  friendlyVoiceParseError,
+} from '@/lib/booth/friendly-errors'
 
 interface Props {
   profile: Profile
@@ -98,7 +102,7 @@ export default function LogExpenseSheet({
 
         const data = await res.json()
         if (!res.ok || typeof data.amount !== 'number' || data.amount <= 0) {
-          setVoiceError("Didn't catch that")
+          setVoiceError(friendlyVoiceParseError(data.error))
           setVoicePhase('idle')
           return
         }
@@ -111,7 +115,7 @@ export default function LogExpenseSheet({
         window.setTimeout(() => setPrefillFlash(false), 1200)
         setVoicePhase('idle')
       } catch {
-        setVoiceError("Didn't catch that")
+        setVoiceError(friendlyVoiceParseError())
         setVoicePhase('idle')
       } finally {
         parsingRef.current = false
@@ -212,7 +216,7 @@ export default function LogExpenseSheet({
       })
 
       if (insertError) {
-        setSaveError(insertError.message || 'Could not save this expense. Please try again.')
+        setSaveError(friendlyExpenseSaveError(insertError.message))
         return
       }
 

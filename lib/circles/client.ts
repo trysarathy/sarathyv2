@@ -1,4 +1,5 @@
 import { getAuthHeaders } from '@/lib/api-auth'
+import { friendlyCircleError } from '@/lib/booth/friendly-errors'
 import type { CircleMoment } from '@/types'
 
 export interface CreateSplitInput {
@@ -20,7 +21,7 @@ export async function createCircleSplit(
 
   const data = await res.json()
   if (!res.ok) {
-    throw new Error(data.error || 'Failed to create split')
+    throw new Error(friendlyCircleError(data.error, 'Could not share the split — try again.'))
   }
   return data.moment as CircleMoment
 }
@@ -38,7 +39,7 @@ export async function claimCircleSplit(momentId: string): Promise<{
 
   const data = await res.json()
   if (!res.ok) {
-    throw new Error(data.error || 'Failed to add your share')
+    throw new Error(friendlyCircleError(data.error, 'Could not add your share — try again.'))
   }
   return data
 }

@@ -24,7 +24,10 @@ import HomeActionsRow from '@/components/home/HomeActionsRow'
 import ConnectedAccountsStrip from '@/components/home/ConnectedAccountsStrip'
 import ExploreGrid from '@/components/home/ExploreGrid'
 import MonthSummarySheet from '@/components/home/MonthSummarySheet'
+import HomeWalkthrough from '@/components/home/HomeWalkthrough'
 import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
+import { friendlyExpenseSaveError, friendlyHomeLoadError } from '@/lib/booth/friendly-errors'
+import { isHomeWalkthroughDone } from '@/lib/booth/walkthrough-storage'
 
 export default function HomePage() {
   const router = useRouter()
@@ -38,6 +41,11 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [logMode, setLogMode] = useState<'manual' | 'voice' | null>(null)
   const heroAnchorRef = useRef<HTMLDivElement>(null)
+  const actionsTourRef = useRef<HTMLDivElement>(null)
+  const monthTileRef = useRef<HTMLButtonElement>(null)
+  const [showWalkthrough, setShowWalkthrough] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadSlow, setLoadSlow] = useState(false)
   const [showTrust, setShowTrust] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<PLCategory | null>(null)
@@ -56,6 +64,7 @@ export default function HomePage() {
   })
 
   const loadData = useCallback(async () => {
+    setLoadError(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/login'); return }
 
@@ -69,35 +78,56 @@ export default function HomePage() {
       console.error('Failed to load budget entries:', entriesRes.error.message)
     }
 
-    if (profileRes.data) {
-      let p = profileRes.data as Profile
-      if (!p.onboarding_complete) { router.replace('/onboarding'); return }
-
-      const e = (entriesRes.error ? [] : entriesRes.data || []) as BudgetEntry[]
-      const f = (fixedRes.data || []) as FixedSpending[]
-      const today = todayInSingapore()
-
-      try {
-        const finalized = await finalizeDreamMonths(supabase, user.id, p, e, f, today)
-        if (finalized) p = finalized
-      } catch (err) {
-        console.error('Dream month finalize failed:', err)
-      }
-
-      setProfile(p)
-      setEntries(e)
-      setFixedSpending(f)
-
-      const safe = attachDreamProgress(calculateSafeToSpend(p, e, f), p, today)
-      setSafeData(safe)
-
-      const monthEntries = getMonthEntries(e)
-      setCategories(groupEntriesByCategory(monthEntries))
+    if (profileRes.error || !profileRes.data) {
+      console.error('Failed to load profile:', profileRes.error?.message)
+      setLoadError(friendlyHomeLoadError())
+      setLoading(false)
+      return
     }
+
+    let p = profileRes.data as Profile
+    if (!p.onboarding_complete) { router.replace('/onboarding'); return }
+
+    const e = (entriesRes.error ? [] : entriesRes.data || []) as BudgetEntry[]
+    const f = (fixedRes.error ? [] : fixedRes.data || []) as FixedSpending[]
+    const today = todayInSingapore()
+
+    try {
+      const finalized = await finalizeDreamMonths(supabase, user.id, p, e, f, today)
+      if (finalized) p = finalized
+    } catch (err) {
+      console.error('Dream month finalize failed:', err)
+    }
+
+    setProfile(p)
+    setEntries(e)
+    setFixedSpending(f)
+
+    const safe = attachDreamProgress(calculateSafeToSpend(p, e, f), p, today)
+    setSafeData(safe)
+
+    const monthEntries = getMonthEntries(e)
+    setCategories(groupEntriesByCategory(monthEntries))
     setLoading(false)
-  }, [])
+  }, [router, supabase])
 
   useEffect(() => { loadData() }, [loadData])
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadSlow(false)
+      return
+    }
+    const t = window.setTimeout(() => setLoadSlow(true), 15000)
+    return () => window.clearTimeout(t)
+  }, [loading])
+
+  useEffect(() => {
+    if (!loading && profile && safeData && !isHomeWalkthroughDone()) {
+      const t = window.setTimeout(() => setShowWalkthrough(true), 400)
+      return () => window.clearTimeout(t)
+    }
+  }, [loading, profile, safeData])
 
   const handleExpenseLogged = async (xp: number, coords?: { x: number; y: number }) => {
     let x = coords?.x
@@ -155,7 +185,7 @@ export default function HomePage() {
 
     setSavingEntry(false)
     if (error) {
-      setEntrySaveError(error.message)
+      setEntrySaveError(friendlyExpenseSaveError(error.message))
       return
     }
     closeEditEntry()
@@ -169,7 +199,7 @@ export default function HomePage() {
     const { error } = await supabase.from('budget_entries').delete().eq('id', entryId)
     setSavingEntry(false)
     if (error) {
-      setEntrySaveError(error.message)
+      setEntrySaveError(friendlyExpenseSaveError(error.message))
       return
     }
     closeEditEntry()
@@ -196,13 +226,30 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-warm-white flex items-center justify-center">
+      <div className="min-h-dvh bg-warm-white flex flex-col items-center justify-center px-6 text-center">
         <div className="w-8 h-8 border-2 border-indigo border-t-transparent rounded-full animate-spin" />
+        {loadSlow && (
+          <p className="text-sm text-indigo-muted mt-4 max-w-xs leading-relaxed">
+            Taking longer than usual — check your connection. This screen will appear when ready.
+          </p>
+        )}
       </div>
     )
   }
 
-  if (!profile || !safeData) return null
+  if (loadError || !profile || !safeData) {
+    return (
+      <div className="booth-error-screen">
+        <p className="font-fraunces text-lg text-indigo mb-2">Couldn&apos;t load home</p>
+        <p className="text-sm text-indigo-muted max-w-xs leading-relaxed">
+          {loadError ?? friendlyHomeLoadError()}
+        </p>
+        <button type="button" className="booth-error-retry" onClick={() => { setLoading(true); loadData() }}>
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   const currency = getProfileDisplayCurrency(profile)
   const firstName = profile.name?.split(' ')[0]
@@ -235,6 +282,7 @@ export default function HomePage() {
 
         <div className="home-enter-3">
           <HomeActionsRow
+            tourRef={actionsTourRef}
             onLogExpense={() => setLogMode('manual')}
             onVoiceLog={() => setLogMode('voice')}
           />
@@ -252,7 +300,7 @@ export default function HomePage() {
           />
         </div>
 
-        <ExploreGrid onOpenMonth={() => setShowMonth(true)} />
+        <ExploreGrid monthTileRef={monthTileRef} onOpenMonth={() => setShowMonth(true)} />
       </div>
 
       {showMonth && (
@@ -384,6 +432,15 @@ export default function HomePage() {
         <TrustLayerModal
           safeData={safeData}
           onClose={() => setShowTrust(false)}
+        />
+      )}
+
+      {showWalkthrough && (
+        <HomeWalkthrough
+          heroRef={heroAnchorRef}
+          actionsRef={actionsTourRef}
+          monthTileRef={monthTileRef}
+          onDone={() => setShowWalkthrough(false)}
         />
       )}
 

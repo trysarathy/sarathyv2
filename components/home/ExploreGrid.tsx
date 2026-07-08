@@ -11,6 +11,7 @@ interface ExploreTile {
 
 interface Props {
   onOpenMonth: () => void
+  monthTileRef?: React.Ref<HTMLButtonElement>
 }
 
 const TILES: ExploreTile[] = [
@@ -37,7 +38,7 @@ function TileContent({ emoji, label }: { emoji: string; label: string }) {
   )
 }
 
-export default function ExploreGrid({ onOpenMonth }: Props) {
+export default function ExploreGrid({ onOpenMonth, monthTileRef }: Props) {
   const tileClass = (tint: string) =>
     `${tint} border border-indigo/6 rounded-2xl p-3 flex items-center gap-2.5 active:scale-[0.98] transition-transform text-left min-h-[56px]`
 
@@ -52,6 +53,7 @@ export default function ExploreGrid({ onOpenMonth }: Props) {
             return (
               <button
                 key={tile.label}
+                ref={monthTileRef}
                 type="button"
                 onClick={onOpenMonth}
                 className={tileClass(tile.tint)}

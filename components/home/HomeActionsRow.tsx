@@ -8,9 +8,10 @@ import { isSpeechRecognitionSupported } from '@/lib/voice/speech-recognition'
 interface Props {
   onLogExpense: () => void
   onVoiceLog?: () => void
+  tourRef?: React.Ref<HTMLDivElement>
 }
 
-export default function HomeActionsRow({ onLogExpense, onVoiceLog }: Props) {
+export default function HomeActionsRow({ onLogExpense, onVoiceLog, tourRef }: Props) {
   const [voiceSupported, setVoiceSupported] = useState(false)
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function HomeActionsRow({ onLogExpense, onVoiceLog }: Props) {
   }, [])
 
   return (
-    <div className="flex gap-2 items-center mb-1">
+    <div ref={tourRef} className="flex gap-2 items-center mb-1">
       <button
         type="button"
         onClick={onLogExpense}
