@@ -102,7 +102,7 @@ export default function WiseCard({
 
   if (variant === 'compact') {
     return (
-      <div className="border-t border-cream first:border-0 pt-2 first:pt-0">
+      <div className="border-t border-indigo/8 first:border-0 pt-2 first:pt-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 text-sm">
             <span>💚</span>
@@ -118,14 +118,14 @@ export default function WiseCard({
             type="button"
             onClick={handleSync}
             disabled={syncing || loading || !transactions.length}
-            className="text-xs font-semibold text-saffron px-2.5 py-1 rounded-lg bg-saffron-soft disabled:opacity-40 shrink-0"
+            className="text-xs font-semibold home-sync-btn disabled:opacity-40 shrink-0"
           >
             {syncing ? '…' : 'Sync'}
           </button>
         </div>
 
         {showDetails && (
-          <div className="mt-3 pt-2 border-t border-cream">
+          <div className="mt-3 pt-2 border-t border-indigo/8">
             {error && !balances.length && (
               <p className="text-xs text-danger mb-2">{error}</p>
             )}

@@ -52,15 +52,15 @@ export default function MoodCheckIn({ userId, variant = 'card', onLogged }: Prop
 
   if (variant === 'inline') {
     return (
-      <div className="flex items-center justify-between gap-3 py-2 mb-3">
-        <p className="text-xs text-ink-3 shrink-0">Money mood today?</p>
+      <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 pb-2 mb-2">
+        <p className="text-xs text-indigo-muted shrink-0">Money mood today?</p>
         <div className="flex gap-2">
           {MOODS.map((mood) => (
             <button
               key={mood.value}
               type="button"
               onClick={() => handleMood(mood.value)}
-              className="text-xl leading-none p-1.5 rounded-lg active:bg-cream-3 transition-colors"
+              className="text-xl leading-none p-2 rounded-full bg-white/8 active:bg-white/15 transition-colors"
               aria-label={mood.value}
             >
               {mood.emoji}

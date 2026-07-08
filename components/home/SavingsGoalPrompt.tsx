@@ -43,11 +43,11 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-saffron/15">
-      <p className="font-fraunces text-base font-medium text-ink mb-1">
+    <div className="home-savings-prompt">
+      <p className="font-fraunces text-base font-medium text-ink-on-indigo mb-1">
         Want Sarathy to protect some savings each month?
       </p>
-      <p className="text-ink-3 text-xs mb-3">
+      <p className="text-indigo-muted text-xs mb-3">
         Set a goal and your safe-to-spend will already set that money aside.
       </p>
 
@@ -59,25 +59,30 @@ export default function SavingsGoalPrompt({ profile, onUpdated }: Props) {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="150"
-          className="input-field flex-1 py-2.5 text-sm"
+          className="home-savings-input flex-1"
         />
         <button
+          type="button"
           onClick={handleSave}
           disabled={saving || !amount || parseFloat(amount) <= 0}
-          className="px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-saffron disabled:opacity-50"
+          className="home-btn-indigo-outline shrink-0"
         >
           Set
         </button>
       </div>
 
       <div className="flex items-center justify-between">
-        <Link href="/profile" className="text-xs text-saffron font-medium">
+        <Link
+          href="/profile"
+          className="text-xs text-ink-on-indigo/70 font-medium hover:text-ink-on-indigo transition-colors"
+        >
           Set in Profile →
         </Link>
         <button
+          type="button"
           onClick={handleDismiss}
           disabled={saving}
-          className="text-xs text-ink-3"
+          className="text-xs text-indigo-muted hover:text-ink-on-indigo/80 transition-colors"
         >
           Not now
         </button>

@@ -167,7 +167,7 @@ export default function FinverseCard({
 
   if (variant === 'compact') {
     return (
-      <div className="border-t border-cream pt-2">
+      <div className="border-t border-indigo/8 pt-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 text-sm">
             <span>🏦</span>
@@ -179,7 +179,7 @@ export default function FinverseCard({
               type="button"
               onClick={handleSync}
               disabled={syncing || loading || !transactions.length}
-              className="text-xs font-semibold text-saffron px-2.5 py-1 rounded-lg bg-saffron-soft disabled:opacity-40 shrink-0"
+              className="text-xs font-semibold home-sync-btn disabled:opacity-40 shrink-0"
             >
               {syncing ? '…' : 'Sync'}
             </button>
@@ -188,7 +188,7 @@ export default function FinverseCard({
               type="button"
               onClick={handleConnect}
               disabled={connecting || loading}
-              className="text-xs font-semibold text-saffron px-2.5 py-1 rounded-lg bg-saffron-soft disabled:opacity-40 shrink-0"
+              className="text-xs font-semibold home-sync-btn disabled:opacity-40 shrink-0"
             >
               {connecting ? '…' : 'Connect'}
             </button>
@@ -196,7 +196,7 @@ export default function FinverseCard({
         </div>
 
         {showDetails && (
-          <div className="mt-3 pt-2 border-t border-cream">
+          <div className="mt-3 pt-2 border-t border-indigo/8">
             {linkBanner && <p className="text-xs text-safe mb-2">{linkBanner}</p>}
             {error && <p className="text-xs text-danger mb-2">{error}</p>}
             {connected && balances.length > 0 && (

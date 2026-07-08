@@ -168,15 +168,17 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="px-5">
-        <ConnectedAccountsStrip
-          profile={profile}
-          existingEntries={entries}
-          onSynced={loadData}
-        />
-      </div>
+      <div className="home-enter-4">
+        <div className="px-5">
+          <ConnectedAccountsStrip
+            profile={profile}
+            existingEntries={entries}
+            onSynced={loadData}
+          />
+        </div>
 
-      <ExploreGrid onOpenMonth={() => setShowMonth(true)} />
+        <ExploreGrid onOpenMonth={() => setShowMonth(true)} />
+      </div>
 
       {showMonth && (
         <MonthSummarySheet

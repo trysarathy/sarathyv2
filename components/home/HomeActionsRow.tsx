@@ -18,11 +18,11 @@ export default function HomeActionsRow({ onLogExpense, onVoiceLog }: Props) {
   }, [])
 
   return (
-    <div className="flex gap-2 items-center mb-3">
+    <div className="flex gap-2 items-center mb-1">
       <button
         type="button"
         onClick={onLogExpense}
-        className="btn-primary !w-auto flex-1 py-3 text-sm min-w-0"
+        className="home-btn-log flex-1 py-3 text-sm min-w-0"
       >
         + Log expense
       </button>
@@ -33,7 +33,7 @@ export default function HomeActionsRow({ onLogExpense, onVoiceLog }: Props) {
 
       <Link
         href="/sarathy"
-        className="btn-secondary !w-auto flex-1 py-3 text-sm flex items-center justify-center no-underline min-w-0"
+        className="home-btn-ghost flex-1 py-3 text-sm min-w-0"
       >
         Ask Sarathy
       </Link>
