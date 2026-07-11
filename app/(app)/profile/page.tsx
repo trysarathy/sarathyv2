@@ -25,6 +25,8 @@ export default function ProfilePage() {
   const [goalSaved, setGoalSaved] = useState(false)
   const [planningAmount, setPlanningAmount] = useState('')
   const [savingPlan, setSavingPlan] = useState(false)
+  const [editingPlan, setEditingPlan] = useState(false)
+  const [editingDream, setEditingDream] = useState(false)
 
   const currency = profile ? getProfileDisplayCurrency(profile) : 'SGD'
   const today = todayInSingapore()
@@ -56,6 +58,8 @@ export default function ProfilePage() {
       setTargetDate(p.goal_target_date ?? '')
       setPlanningAmount(p.planning_amount ? String(p.planning_amount) : '')
       setMonthlyTouched(false)
+      setEditingPlan(!(p.planning_amount && p.planning_amount > 0))
+      setEditingDream(!(p.monthly_savings_goal && p.monthly_savings_goal > 0))
     }
     setLoading(false)
   }
@@ -73,6 +77,36 @@ export default function ProfilePage() {
     setProfile(prev => prev ? { ...prev, primary_currency: code } : prev)
   }
 
+  const startEditingPlan = () => {
+    setPlanningAmount(profile?.planning_amount ? String(profile.planning_amount) : '')
+    setEditingPlan(true)
+  }
+
+  const cancelEditingPlan = () => {
+    setPlanningAmount(profile?.planning_amount ? String(profile.planning_amount) : '')
+    setEditingPlan(!(profile?.planning_amount && profile.planning_amount > 0))
+  }
+
+  const startEditingDream = () => {
+    if (!profile) return
+    setSavingsGoal(String(profile.monthly_savings_goal ?? 0))
+    setGoalName(profile.goal_name ?? '')
+    setTargetAmount(profile.goal_target_amount ? String(profile.goal_target_amount) : '')
+    setTargetDate(profile.goal_target_date ?? '')
+    setMonthlyTouched(false)
+    setEditingDream(true)
+  }
+
+  const cancelEditingDream = () => {
+    if (!profile) return
+    setSavingsGoal(String(profile.monthly_savings_goal ?? 0))
+    setGoalName(profile.goal_name ?? '')
+    setTargetAmount(profile.goal_target_amount ? String(profile.goal_target_amount) : '')
+    setTargetDate(profile.goal_target_date ?? '')
+    setMonthlyTouched(false)
+    setEditingDream(!(profile.monthly_savings_goal && profile.monthly_savings_goal > 0))
+  }
+
   const handlePlanningSave = async () => {
     if (!profile) return
     const parsed = Math.max(0, Math.round(parseFloat(planningAmount) || 0))
@@ -85,6 +119,7 @@ export default function ProfilePage() {
     if (!error) {
       setProfile(prev => prev ? { ...prev, planning_amount: parsed || null } : prev)
       setPlanningAmount(parsed ? String(parsed) : '')
+      setEditingPlan(parsed <= 0)
     }
   }
 
@@ -116,12 +151,16 @@ export default function ProfilePage() {
       } : prev)
       setSavingsGoal(String(parsed))
       setMonthlyTouched(false)
+      setEditingDream(parsed <= 0)
       setGoalSaved(true)
       setTimeout(() => setGoalSaved(false), 2000)
     } finally {
       setSavingGoal(false)
     }
   }
+
+  const hasSavedPlan = Boolean(profile?.planning_amount && profile.planning_amount > 0)
+  const hasSavedDream = Boolean(profile?.monthly_savings_goal && profile.monthly_savings_goal > 0)
 
   if (loading || !profile) {
     return (
@@ -166,92 +205,179 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="profile-divider">
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={planningAmount}
-                onChange={(e) => setPlanningAmount(e.target.value)}
-                placeholder="Monthly plan amount"
-                className="profile-input flex-1"
-              />
-              <button
-                type="button"
-                onClick={handlePlanningSave}
-                disabled={savingPlan}
-                className="profile-btn-indigo"
-              >
-                Update plan
-              </button>
-            </div>
+            {hasSavedPlan && !editingPlan ? (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-indigo-muted mb-0.5">Monthly budget / income</p>
+                  <p className="text-sm font-semibold text-indigo">
+                    {formatCurrency(profile.planning_amount!, currency)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={startEditingPlan}
+                  className="text-xs text-ink-3 px-2 py-1 rounded-lg bg-cream shrink-0"
+                >
+                  Edit
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={planningAmount}
+                    onChange={(e) => setPlanningAmount(e.target.value)}
+                    placeholder="Monthly plan amount"
+                    className="profile-input flex-1"
+                    autoFocus={editingPlan && hasSavedPlan}
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePlanningSave}
+                    disabled={savingPlan}
+                    className="profile-btn-indigo"
+                  >
+                    {savingPlan ? 'Saving…' : hasSavedPlan ? 'Save' : 'Set plan'}
+                  </button>
+                </div>
+                {hasSavedPlan && (
+                  <button
+                    type="button"
+                    onClick={cancelEditingPlan}
+                    className="text-xs text-indigo-muted self-start"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="profile-dream-card">
           <p className="profile-dream-title">🛡️ Savings dream</p>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="text"
-              value={goalName}
-              onChange={(e) => setGoalName(e.target.value)}
-              placeholder="Name (e.g. Bali fund)"
-              maxLength={80}
-              className="profile-input flex-[2] min-w-0"
-            />
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={savingsGoal}
-              onChange={(e) => {
-                setMonthlyTouched(true)
-                setSavingsGoal(e.target.value)
-              }}
-              placeholder="/ month"
-              className="profile-input flex-1 min-w-[4.5rem]"
-            />
-          </div>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={targetAmount}
-              onChange={(e) => setTargetAmount(e.target.value)}
-              placeholder="How much in total?"
-              className="profile-input flex-1 min-w-0"
-            />
-            <input
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              className="profile-input flex-1 min-w-0"
-              aria-label="By when?"
-            />
-            <button
-              type="button"
-              onClick={handleSavingsGoalSave}
-              disabled={savingGoal}
-              className="profile-btn-coral"
-            >
-              Save
-            </button>
-          </div>
-          {suggestion && !monthlyTouched && (
-            <p className="text-xs text-indigo-muted mb-2 leading-relaxed">
-              Suggested {formatCurrency(suggestion.suggested, currency)}/mo to hit{' '}
-              {formatCurrency(suggestion.target, currency)} by{' '}
-              {new Date(`${targetDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-            </p>
-          )}
-          <p className="text-xs text-ink-3 leading-relaxed">
-            Sarathy treats the monthly amount as already set aside — your safe-to-spend won&apos;t touch it. Set monthly to 0 to turn off.
-          </p>
-          {goalSaved && (
-            <p className="text-xs text-safe mt-2 font-medium flex items-center gap-1">
-              <span className="text-gold">✓</span> Saved
-            </p>
+          {hasSavedDream && !editingDream ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-indigo truncate">
+                    {profile.goal_name?.trim() || 'Savings goal'}
+                  </p>
+                  <p className="text-xs text-indigo-muted mt-0.5">
+                    {formatCurrency(profile.monthly_savings_goal!, currency)}/mo
+                    {profile.goal_target_amount ? (
+                      <> · {formatCurrency(profile.goal_target_amount, currency)} total</>
+                    ) : null}
+                    {profile.goal_target_date ? (
+                      <> · by {new Date(`${profile.goal_target_date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</>
+                    ) : null}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={startEditingDream}
+                  className="text-xs text-ink-3 px-2 py-1 rounded-lg bg-cream shrink-0"
+                >
+                  Edit
+                </button>
+              </div>
+              {profile.goal_saved_amount != null && profile.goal_saved_amount > 0 && (
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <p className="text-xs text-indigo-muted">
+                    Saved so far:{' '}
+                    <span className="font-medium text-indigo">
+                      {formatCurrency(profile.goal_saved_amount, currency)}
+                    </span>
+                  </p>
+                </div>
+              )}
+              <p className="text-xs text-ink-3 leading-relaxed">
+                Sarathy treats the monthly amount as already set aside — your safe-to-spend won&apos;t touch it.
+              </p>
+              {goalSaved && (
+                <p className="text-xs text-safe font-medium flex items-center gap-1">
+                  <span className="text-gold">✓</span> Saved
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={goalName}
+                  onChange={(e) => setGoalName(e.target.value)}
+                  placeholder="Name (e.g. Bali fund)"
+                  maxLength={80}
+                  className="profile-input flex-[2] min-w-0"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={savingsGoal}
+                  onChange={(e) => {
+                    setMonthlyTouched(true)
+                    setSavingsGoal(e.target.value)
+                  }}
+                  placeholder="/ month"
+                  className="profile-input flex-1 min-w-[4.5rem]"
+                />
+              </div>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={targetAmount}
+                  onChange={(e) => setTargetAmount(e.target.value)}
+                  placeholder="How much in total?"
+                  className="profile-input flex-1 min-w-0"
+                />
+                <input
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  className="profile-input flex-1 min-w-0"
+                  aria-label="By when?"
+                />
+                <button
+                  type="button"
+                  onClick={handleSavingsGoalSave}
+                  disabled={savingGoal}
+                  className="profile-btn-coral"
+                >
+                  Save
+                </button>
+              </div>
+              {hasSavedDream && (
+                <button
+                  type="button"
+                  onClick={cancelEditingDream}
+                  className="text-xs text-indigo-muted mb-2"
+                >
+                  Cancel
+                </button>
+              )}
+              {suggestion && !monthlyTouched && (
+                <p className="text-xs text-indigo-muted mb-2 leading-relaxed">
+                  Suggested {formatCurrency(suggestion.suggested, currency)}/mo to hit{' '}
+                  {formatCurrency(suggestion.target, currency)} by{' '}
+                  {new Date(`${targetDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                </p>
+              )}
+              <p className="text-xs text-ink-3 leading-relaxed">
+                Sarathy treats the monthly amount as already set aside — your safe-to-spend won&apos;t touch it. Set monthly to 0 to turn off.
+              </p>
+              {goalSaved && (
+                <p className="text-xs text-safe mt-2 font-medium flex items-center gap-1">
+                  <span className="text-gold">✓</span> Saved
+                </p>
+              )}
+            </>
           )}
         </div>
 

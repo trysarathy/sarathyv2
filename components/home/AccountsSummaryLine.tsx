@@ -72,7 +72,7 @@ export default function AccountsSummaryLine({ profile }: Props) {
   if (!summary) return null
 
   return (
-    <p className="text-[13px] text-ink-on-indigo/75 font-jakarta tracking-wide mt-2">
+    <p className="text-[12px] text-white/40 font-jakarta tracking-wide m-0">
       {summary}
     </p>
   )

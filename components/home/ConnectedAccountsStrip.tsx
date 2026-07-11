@@ -21,10 +21,10 @@ function StripContent({ profile, existingEntries, onSynced }: Props) {
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-center justify-between mb-2 text-left"
       >
-        <span className="text-sm font-medium text-indigo/80 tracking-wide">
+        <span className="text-sm font-medium text-[#1C0F3F]/80 tracking-wide">
           Connected accounts
         </span>
-        <span className="text-indigo-muted text-xs">{expanded ? '▲' : '▼'}</span>
+        <span className="text-[#A09080] text-xs">{expanded ? '▲' : '▼'}</span>
       </button>
 
       <div className="flex flex-col gap-2">

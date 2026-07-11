@@ -17,12 +17,9 @@ import TabBar from '@/components/ui/TabBar'
 import MoodCheckIn from '@/components/home/MoodCheckIn'
 import LogExpenseSheet from '@/components/home/LogExpenseSheet'
 import TrustLayerModal from '@/components/home/TrustLayerModal'
-import DailyBriefCard from '@/components/home/DailyBriefCard'
-import SavingsGoalPrompt from '@/components/home/SavingsGoalPrompt'
-import SafeToSpendHero from '@/components/home/SafeToSpendHero'
-import HomeActionsRow from '@/components/home/HomeActionsRow'
 import ConnectedAccountsStrip from '@/components/home/ConnectedAccountsStrip'
-import ExploreGrid from '@/components/home/ExploreGrid'
+import AccountsSummaryLine from '@/components/home/AccountsSummaryLine'
+import TodayView from '@/components/home/TodayView'
 import MonthSummarySheet from '@/components/home/MonthSummarySheet'
 import HomeWalkthrough from '@/components/home/HomeWalkthrough'
 import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
@@ -210,16 +207,6 @@ export default function HomePage() {
   const today = todayInSingapore()
   const monthKey = today.slice(0, 7)
 
-  const todaySpent = entries
-    .filter(e => e.entry_date === today)
-    .reduce((sum, e) => sum + e.amount, 0)
-
-  const meterPercent = safeData
-    ? Math.min(100, Math.round((todaySpent / Math.max(safeData.safeToSpend, 1)) * 100))
-    : 0
-
-  const meterColor = meterPercent < 70 ? '#10B981' : meterPercent < 90 ? '#F59E0B' : '#F43F5E'
-
   const monthTotal = entries
     .filter(e => e.entry_date.slice(0, 7) === monthKey)
     .reduce((sum, e) => sum + e.amount, 0)
@@ -252,199 +239,179 @@ export default function HomePage() {
   }
 
   const currency = getProfileDisplayCurrency(profile)
-  const firstName = profile.name?.split(' ')[0]
 
   return (
-    <div className="min-h-dvh bg-warm-white pb-24">
+    <>
       {xpFloat.show && (
         <div className="xp-float" style={{ left: xpFloat.x, top: xpFloat.y }}>
           +{xpFloat.xp} XP ⚡
         </div>
       )}
 
-      <div className="home-header-zone px-5 pt-12 pb-2">
-        <div className="home-enter-1">
-          <DailyBriefCard firstName={firstName} />
-
-          <SavingsGoalPrompt profile={profile} onUpdated={loadData} />
-        </div>
-
-        <div ref={heroAnchorRef} className="home-enter-2">
-          <SafeToSpendHero
-            profile={profile}
-            safeData={safeData}
-            todaySpent={todaySpent}
-            meterPercent={meterPercent}
-            meterColor={meterColor}
-            onTap={() => setShowTrust(true)}
-          />
-        </div>
-
-        <div className="home-enter-3">
-          <HomeActionsRow
-            tourRef={actionsTourRef}
-            onLogExpense={() => setLogMode('manual')}
-            onVoiceLog={() => setLogMode('voice')}
-          />
-
-          <MoodCheckIn userId={profile.id} variant="inline" />
-        </div>
-      </div>
-
-      <div className="home-enter-4">
-        <div className="px-5">
+      <TodayView
+        safeToSpend={safeData.safeToSpend}
+        currency={currency}
+        totalBalance={<AccountsSummaryLine profile={profile} />}
+        heroRef={heroAnchorRef}
+        actionsRef={actionsTourRef}
+        monthTileRef={monthTileRef}
+        onLogExpense={() => setLogMode('manual')}
+        onVoiceLog={() => setLogMode('voice')}
+        onAskSarathy={() => router.push('/sarathy')}
+        onTapBreakdown={() => setShowTrust(true)}
+        onOpenMonth={() => setShowMonth(true)}
+        moodSlot={<MoodCheckIn userId={profile.id} variant="inline" />}
+        accountsSlot={
           <ConnectedAccountsStrip
             profile={profile}
             existingEntries={entries}
             onSynced={loadData}
           />
-        </div>
+        }
+      >
+        {showMonth && (
+          <MonthSummarySheet
+            profile={profile}
+            categories={categories}
+            monthTotal={monthTotal}
+            currency={currency}
+            onSelectCategory={(cat) => {
+              setShowMonth(false)
+              setSelectedCategory(cat)
+            }}
+            onClose={() => setShowMonth(false)}
+          />
+        )}
 
-        <ExploreGrid monthTileRef={monthTileRef} onOpenMonth={() => setShowMonth(true)} />
-      </div>
-
-      {showMonth && (
-        <MonthSummarySheet
-          profile={profile}
-          categories={categories}
-          monthTotal={monthTotal}
-          currency={currency}
-          onSelectCategory={(cat) => {
-            setShowMonth(false)
-            setSelectedCategory(cat)
-          }}
-          onClose={() => setShowMonth(false)}
-        />
-      )}
-
-      {selectedCategory && (
-        <>
-          <div className="overlay" onClick={() => setSelectedCategory(null)} />
-          <div className="bottom-sheet">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{getCategoryEmoji(selectedCategory.category)}</span>
-                <div>
-                  <h3 className="font-fraunces text-lg font-semibold text-ink">{selectedCategory.category}</h3>
-                  <p className="text-ink-3 text-xs">{formatCurrency(selectedCategory.total, currency)} total</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setSelectedCategory(null)} className="text-ink-3 text-2xl">×</button>
-            </div>
-            <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
-              {selectedCategory.entries.map(entry => (
-                <div key={entry.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0 gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink truncate">{entry.description || entry.category}</p>
-                    <p className="text-xs text-ink-3">
-                      {new Date(entry.entry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
-                    </p>
+        {selectedCategory && (
+          <>
+            <div className="overlay" onClick={() => setSelectedCategory(null)} />
+            <div className="bottom-sheet">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{getCategoryEmoji(selectedCategory.category)}</span>
+                  <div>
+                    <h3 className="font-fraunces text-lg font-semibold text-ink">{selectedCategory.category}</h3>
+                    <p className="text-ink-3 text-xs">{formatCurrency(selectedCategory.total, currency)} total</p>
                   </div>
-                  <span className="text-sm font-semibold text-ink shrink-0">{formatCurrency(entry.amount, currency)}</span>
-                  <button
-                    type="button"
-                    onClick={() => openEditEntry(entry)}
-                    className="text-xs text-ink-3 px-2 py-1 rounded-lg bg-cream shrink-0"
-                  >
-                    Edit
-                  </button>
                 </div>
-              ))}
+                <button type="button" onClick={() => setSelectedCategory(null)} className="text-ink-3 text-2xl">×</button>
+              </div>
+              <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+                {selectedCategory.entries.map(entry => (
+                  <div key={entry.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0 gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink truncate">{entry.description || entry.category}</p>
+                      <p className="text-xs text-ink-3">
+                        {new Date(entry.entry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-ink shrink-0">{formatCurrency(entry.amount, currency)}</span>
+                    <button
+                      type="button"
+                      onClick={() => openEditEntry(entry)}
+                      className="text-xs text-ink-3 px-2 py-1 rounded-lg bg-cream shrink-0"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {editingEntry && (
-        <>
-          <div className="overlay" onClick={closeEditEntry} />
-          <div className="bottom-sheet">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-fraunces text-xl font-semibold text-ink">Edit expense</h3>
-              <button type="button" onClick={closeEditEntry} className="text-ink-3 text-2xl">×</button>
+        {editingEntry && (
+          <>
+            <div className="overlay" onClick={closeEditEntry} />
+            <div className="bottom-sheet">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-fraunces text-xl font-semibold text-ink">Edit expense</h3>
+                <button type="button" onClick={closeEditEntry} className="text-ink-3 text-2xl">×</button>
+              </div>
+
+              <input
+                type="number"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                placeholder="Amount"
+                className="input-field mb-3"
+                inputMode="decimal"
+              />
+              <input
+                type="text"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Description"
+                className="input-field mb-3"
+              />
+              <input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="input-field mb-3"
+              />
+              <select
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                className="input-field mb-3"
+              >
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+
+              {entrySaveError && (
+                <p className="text-xs text-danger mb-3">{entrySaveError}</p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleSaveEntry}
+                disabled={savingEntry}
+                className="btn-primary"
+              >
+                {savingEntry ? 'Saving…' : 'Save changes'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteEntry(editingEntry.id)}
+                disabled={savingEntry}
+                className="w-full mt-3 py-3 text-sm text-danger font-medium"
+              >
+                Delete expense
+              </button>
             </div>
+          </>
+        )}
 
-            <input
-              type="number"
-              value={editAmount}
-              onChange={(e) => setEditAmount(e.target.value)}
-              placeholder="Amount"
-              className="input-field mb-3"
-              inputMode="decimal"
-            />
-            <input
-              type="text"
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              placeholder="Description"
-              className="input-field mb-3"
-            />
-            <input
-              type="date"
-              value={editDate}
-              onChange={(e) => setEditDate(e.target.value)}
-              className="input-field mb-3"
-            />
-            <select
-              value={editCategory}
-              onChange={(e) => setEditCategory(e.target.value)}
-              className="input-field mb-3"
-            >
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+        {logMode && (
+          <LogExpenseSheet
+            profile={profile}
+            onClose={() => setLogMode(null)}
+            onLogged={handleExpenseLogged}
+            startInListeningMode={logMode === 'voice'}
+          />
+        )}
 
-            {entrySaveError && (
-              <p className="text-xs text-danger mb-3">{entrySaveError}</p>
-            )}
+        {showTrust && safeData && (
+          <TrustLayerModal
+            safeData={safeData}
+            onClose={() => setShowTrust(false)}
+          />
+        )}
 
-            <button
-              type="button"
-              onClick={handleSaveEntry}
-              disabled={savingEntry}
-              className="btn-primary"
-            >
-              {savingEntry ? 'Saving…' : 'Save changes'}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDeleteEntry(editingEntry.id)}
-              disabled={savingEntry}
-              className="w-full mt-3 py-3 text-sm text-danger font-medium"
-            >
-              Delete expense
-            </button>
-          </div>
-        </>
-      )}
-
-      {logMode && (
-        <LogExpenseSheet
-          profile={profile}
-          onClose={() => setLogMode(null)}
-          onLogged={handleExpenseLogged}
-          startInListeningMode={logMode === 'voice'}
-        />
-      )}
-
-      {showTrust && safeData && (
-        <TrustLayerModal
-          safeData={safeData}
-          onClose={() => setShowTrust(false)}
-        />
-      )}
-
-      {showWalkthrough && (
-        <HomeWalkthrough
-          heroRef={heroAnchorRef}
-          actionsRef={actionsTourRef}
-          monthTileRef={monthTileRef}
-          onDone={() => setShowWalkthrough(false)}
-        />
-      )}
+        {showWalkthrough && (
+          <HomeWalkthrough
+            heroRef={heroAnchorRef}
+            actionsRef={actionsTourRef}
+            monthTileRef={monthTileRef}
+            onDone={() => setShowWalkthrough(false)}
+          />
+        )}
+      </TodayView>
 
       <TabBar active="home" />
-    </div>
+    </>
   )
 }

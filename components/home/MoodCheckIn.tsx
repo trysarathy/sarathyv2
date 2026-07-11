@@ -10,8 +10,8 @@ interface Props {
 }
 
 const MOODS = [
-  { emoji: '😌', value: 'good' },
-  { emoji: '😰', value: 'anxious' },
+  { emoji: '😄', value: 'good' },
+  { emoji: '😐', value: 'anxious' },
   { emoji: '😤', value: 'stressed' },
 ]
 
@@ -52,15 +52,15 @@ export default function MoodCheckIn({ userId, variant = 'card', onLogged }: Prop
 
   if (variant === 'inline') {
     return (
-      <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 pb-2 mb-2">
-        <p className="text-xs text-indigo-muted shrink-0">Money mood today?</p>
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <p className="text-[13px] text-[#7A6E5A] font-medium shrink-0">Money mood today?</p>
+        <div className="flex gap-2.5">
           {MOODS.map((mood) => (
             <button
               key={mood.value}
               type="button"
               onClick={() => handleMood(mood.value)}
-              className="text-xl leading-none p-2 rounded-full bg-white/8 active:bg-white/15 transition-colors"
+              className="text-[22px] leading-none p-0 bg-transparent border-none cursor-pointer"
               aria-label={mood.value}
             >
               {mood.emoji}

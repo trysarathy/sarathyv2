@@ -313,9 +313,33 @@ export default function OnboardingPage() {
       {step === 5 && (
         <div className="flex flex-col flex-1 page-enter">
           <h2 className="font-fraunces text-2xl font-semibold text-ink mb-2">
-            I've set these up for you 🌟
+            I&apos;ve set these up for you 🌟
           </h2>
-          <p className="text-ink-3 text-sm mb-8">Rename or remove them anytime.</p>
+          <p className="text-ink-3 text-sm mb-6">Rename or remove them anytime.</p>
+
+          {(totalMoney || planningAmount > 0) && (
+            <div className="card flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p className="text-xs text-ink-3 mb-0.5">Monthly budget / income</p>
+                <p className="font-semibold text-ink text-sm">
+                  {planningAmount.toLocaleString()}
+                  {moneyType ? ` · ${moneyType}` : ''}
+                </p>
+                {hasCommitted && committedAmount && (
+                  <p className="text-xs text-ink-3 mt-0.5">
+                    {committedAmount} already committed
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                className="text-xs text-ink-3 px-2 py-1 rounded-lg bg-cream shrink-0"
+              >
+                Edit
+              </button>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 mb-8">
             <div className="card flex items-center gap-3">

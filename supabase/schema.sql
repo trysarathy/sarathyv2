@@ -156,6 +156,23 @@ CREATE TABLE IF NOT EXISTS public.mood_logs (
 CREATE INDEX IF NOT EXISTS mood_logs_user_id_idx ON public.mood_logs (user_id);
 
 -- -----------------------------------------------------------------------------
+-- user_feedback
+-- In-app feedback after ~3 minutes of active use.
+-- Ratings used in app: "Love it" | "Getting there" | "Confused"
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.user_feedback (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  rating text NOT NULL,
+  comment text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS user_feedback_user_id_idx ON public.user_feedback (user_id);
+CREATE INDEX IF NOT EXISTS user_feedback_created_at_idx ON public.user_feedback (created_at DESC);
+
+-- -----------------------------------------------------------------------------
 -- chat_messages
 -- Sarathy AI companion conversation history.
 -- -----------------------------------------------------------------------------
@@ -411,6 +428,7 @@ ALTER TABLE public.budget_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fixed_spending ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mood_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.circles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.circle_members ENABLE ROW LEVEL SECURITY;
@@ -512,3 +530,15 @@ ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS source_circle_moment_
 CREATE UNIQUE INDEX IF NOT EXISTS budget_entries_user_moment_claim_idx
   ON public.budget_entries (user_id, source_circle_moment_id)
   WHERE source_circle_moment_id IS NOT NULL;
+
+-- User feedback prompt (2026-07-11)
+CREATE TABLE IF NOT EXISTS public.user_feedback (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  rating text NOT NULL,
+  comment text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS user_feedback_user_id_idx ON public.user_feedback (user_id);
+CREATE INDEX IF NOT EXISTS user_feedback_created_at_idx ON public.user_feedback (created_at DESC);
+ALTER TABLE public.user_feedback ENABLE ROW LEVEL SECURITY;
