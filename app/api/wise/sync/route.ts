@@ -8,6 +8,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const mode = getWiseMode()
+
+  // Never expose mock/demo balances to the client — unconnected users see empty state.
+  if (mode !== 'real') {
+    return NextResponse.json({
+      mode: 'mock',
+      connected: false,
+      balances: [],
+      transactions: [],
+    })
+  }
+
   const daysParam = req.nextUrl.searchParams.get('days')
   const days = daysParam ? Math.min(Math.max(parseInt(daysParam, 10) || 30, 1), 90) : 30
 
@@ -19,13 +31,14 @@ export async function GET(req: NextRequest) {
     ])
 
     return NextResponse.json({
-      mode: getWiseMode(),
+      mode: 'real',
+      connected: true,
       balances,
       transactions,
     })
   } catch (error) {
     console.error('Wise sync error:', error)
     const message = error instanceof Error ? error.message : 'Failed to fetch Wise data'
-    return NextResponse.json({ error: message }, { status: 503 })
+    return NextResponse.json({ error: message, mode: 'real', connected: false }, { status: 503 })
   }
 }

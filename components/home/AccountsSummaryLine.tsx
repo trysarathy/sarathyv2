@@ -28,7 +28,11 @@ export default function AccountsSummaryLine({ profile }: Props) {
         })
         if (wiseRes.ok) {
           const wiseData = await wiseRes.json()
-          if (Array.isArray(wiseData.balances)) {
+          if (
+            wiseData.connected &&
+            wiseData.mode === 'real' &&
+            Array.isArray(wiseData.balances)
+          ) {
             balanceLists.push(wiseData.balances)
           }
         }

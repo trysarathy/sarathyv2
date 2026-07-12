@@ -104,6 +104,8 @@ const SECTIONS: {
 export interface TodayViewProps {
   safeToSpend: number
   currency: string
+  /** When false, hero shows a CTA to set budget instead of a calculated number. */
+  hasBudget: boolean
   totalBalance?: ReactNode
   heroRef?: Ref<HTMLDivElement>
   actionsRef?: Ref<HTMLDivElement>
@@ -121,6 +123,7 @@ export interface TodayViewProps {
 export default function TodayView({
   safeToSpend,
   currency,
+  hasBudget,
   totalBalance,
   heroRef,
   actionsRef,
@@ -241,49 +244,81 @@ export default function TodayView({
         >
           Safe to spend today
         </p>
-        <p
-          style={{
-            fontSize: 52,
-            fontWeight: 700,
-            color: C.white,
-            letterSpacing: '-0.03em',
-            lineHeight: 1,
-            marginBottom: 4,
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          {formatCurrency(safeToSpend, currency)}
-        </p>
-        {totalBalance && (
-          <div
+        {hasBudget ? (
+          <>
+            <p
+              style={{
+                fontSize: 52,
+                fontWeight: 700,
+                color: C.white,
+                letterSpacing: '-0.03em',
+                lineHeight: 1,
+                marginBottom: 4,
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              {formatCurrency(safeToSpend, currency)}
+            </p>
+            {totalBalance && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.42)',
+                  marginBottom: 4,
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+              >
+                {totalBalance}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onTapBreakdown}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: 11,
+                color: 'rgba(212,168,83,0.65)',
+                cursor: 'pointer',
+                padding: 0,
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              Tap to see how I calculated this →
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => router.push('/profile')}
             style={{
-              fontSize: 12,
-              color: 'rgba(255,255,255,0.42)',
-              marginBottom: 4,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              marginTop: 8,
+              textAlign: 'left',
+              cursor: 'pointer',
               position: 'relative',
               zIndex: 1,
             }}
           >
-            {totalBalance}
-          </div>
+            <span
+              style={{
+                display: 'block',
+                fontSize: 22,
+                fontWeight: 600,
+                color: C.gold,
+                letterSpacing: '-0.02em',
+                lineHeight: 1.35,
+              }}
+            >
+              Set your budget to see your safe-to-spend →
+            </span>
+          </button>
         )}
-        <button
-          type="button"
-          onClick={onTapBreakdown}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: 11,
-            color: 'rgba(212,168,83,0.65)',
-            cursor: 'pointer',
-            padding: 0,
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          Tap to see how I calculated this →
-        </button>
       </div>
 
       {/* ── SCROLLABLE BODY ── */}

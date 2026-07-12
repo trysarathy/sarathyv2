@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [savingPlan, setSavingPlan] = useState(false)
   const [editingPlan, setEditingPlan] = useState(false)
   const [editingDream, setEditingDream] = useState(false)
+  const [budgetToast, setBudgetToast] = useState(false)
 
   const currency = profile ? getProfileDisplayCurrency(profile) : 'SGD'
   const today = todayInSingapore()
@@ -120,6 +121,8 @@ export default function ProfilePage() {
       setProfile(prev => prev ? { ...prev, planning_amount: parsed || null } : prev)
       setPlanningAmount(parsed ? String(parsed) : '')
       setEditingPlan(parsed <= 0)
+      setBudgetToast(true)
+      window.setTimeout(() => setBudgetToast(false), 2000)
     }
   }
 
@@ -427,6 +430,12 @@ export default function ProfilePage() {
       </div>
 
       <TabBar active="profile" />
+
+      {budgetToast && (
+        <div className="booth-toast" role="status">
+          Budget updated ✓
+        </div>
+      )}
     </div>
   )
 }

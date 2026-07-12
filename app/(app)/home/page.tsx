@@ -251,6 +251,7 @@ export default function HomePage() {
       <TodayView
         safeToSpend={safeData.safeToSpend}
         currency={currency}
+        hasBudget={Boolean(profile.planning_amount && profile.planning_amount > 0)}
         totalBalance={<AccountsSummaryLine profile={profile} />}
         heroRef={heroAnchorRef}
         actionsRef={actionsTourRef}
@@ -280,6 +281,10 @@ export default function HomePage() {
               setSelectedCategory(cat)
             }}
             onClose={() => setShowMonth(false)}
+            onBudgetUpdated={(planningAmount) => {
+              setProfile((prev) => (prev ? { ...prev, planning_amount: planningAmount } : prev))
+              void loadData()
+            }}
           />
         )}
 
