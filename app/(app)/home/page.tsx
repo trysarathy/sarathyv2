@@ -40,7 +40,7 @@ export default function HomePage() {
   const [logMode, setLogMode] = useState<'manual' | 'voice' | null>(null)
   const heroAnchorRef = useRef<HTMLDivElement>(null)
   const actionsTourRef = useRef<HTMLDivElement>(null)
-  const monthTileRef = useRef<HTMLButtonElement>(null)
+  const monthCardRef = useRef<HTMLDivElement>(null)
   const [showWalkthrough, setShowWalkthrough] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadSlow, setLoadSlow] = useState(false)
@@ -259,12 +259,11 @@ export default function HomePage() {
         totalBalance={<AccountsSummaryLine profile={profile} />}
         heroRef={heroAnchorRef}
         actionsRef={actionsTourRef}
-        monthTileRef={monthTileRef}
+        monthCardRef={monthCardRef}
         onLogExpense={() => setLogMode('manual')}
         onVoiceLog={() => setLogMode('voice')}
         onAskSarathy={() => router.push('/sarathy')}
         onTapBreakdown={() => setShowTrust(true)}
-        onOpenMonth={() => setShowMonth(true)}
         onSetupBudget={() => {
           document.getElementById('this-month-card')?.scrollIntoView({
             behavior: 'smooth',
@@ -285,6 +284,7 @@ export default function HomePage() {
             monthTotal={monthTotal}
             currency={currency}
             onLogFirstExpense={() => setLogMode('manual')}
+            onOpenDetails={() => setShowMonth(true)}
             onBudgetUpdated={(planningAmount) => {
               setProfile((prev) => (prev ? { ...prev, planning_amount: planningAmount } : prev))
               void loadData()
@@ -432,7 +432,7 @@ export default function HomePage() {
           <HomeWalkthrough
             heroRef={heroAnchorRef}
             actionsRef={actionsTourRef}
-            monthTileRef={monthTileRef}
+            monthTileRef={monthCardRef}
             onDone={() => setShowWalkthrough(false)}
           />
         )}

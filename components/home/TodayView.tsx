@@ -2,12 +2,10 @@
 
 // ─── Sarathy · Today Home Screen ───────────────────────────────────────────
 // Light cream + deep purple + gold scheme
-// Features grouped into 3 sections — all visible, no clutter
-// Savings form moved to Profile/Dreams tab
+// Focused: hero, actions, mood, accounts, this-month card
 // ───────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState, type ReactNode, type Ref } from 'react'
-import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/calculations'
 import { isSpeechRecognitionSupported } from '@/lib/voice/speech-recognition'
 
@@ -38,69 +36,6 @@ export const TODAY_COLORS = {
 
 const C = TODAY_COLORS
 
-type FeatureRoute = string | 'this-month'
-
-// ── Feature sections (routes match existing app paths) ─────────────────────
-const SECTIONS: {
-  id: string
-  title: string
-  color: { bg: string; border: string; title: string; desc: string; rule: string; label: string }
-  features: { id: string; icon: string; name: string; desc: string; route: FeatureRoute }[]
-}[] = [
-  {
-    id: 'know-yourself',
-    title: 'Know yourself',
-    color: {
-      bg: C.purpleLight,
-      border: C.purpleBorder,
-      title: C.purpleText,
-      desc: C.purpleMuted,
-      rule: C.purpleBorder,
-      label: '#5B3FC4',
-    },
-    features: [
-      { id: 'psychology', icon: '🧠', name: 'Psychology', desc: 'Why you spend how you do', route: '/biases' },
-      { id: 'financial-dna', icon: '🧬', name: 'Financial DNA', desc: 'Your money personality', route: '/insights' },
-      { id: 'future-you', icon: '🔮', name: 'Future you', desc: "Where you're headed", route: '/future' },
-      { id: 'money-check', icon: '😊', name: 'Money check', desc: "How you're doing now", route: '/check' },
-    ],
-  },
-  {
-    id: 'your-money',
-    title: 'Your money',
-    color: {
-      bg: C.goldLight,
-      border: C.goldBorder,
-      title: C.goldText,
-      desc: C.goldMuted,
-      rule: '#E5CFA0',
-      label: '#8A5E10',
-    },
-    features: [
-      { id: 'my-data', icon: '📊', name: 'My data', desc: 'Full spending breakdown', route: '/mydata' },
-      { id: 'this-month', icon: '📅', name: 'This month', desc: 'Monthly snapshot', route: 'this-month' },
-      { id: 'fixed-costs', icon: '📌', name: 'Fixed costs', desc: 'Bills and recurring', route: '/fixed' },
-      { id: 'import', icon: '📄', name: 'Import', desc: 'Upload bank statement', route: '/upload' },
-    ],
-  },
-  {
-    id: 'student-life',
-    title: 'Student life',
-    color: {
-      bg: C.coral,
-      border: C.coralBorder,
-      title: C.coralText,
-      desc: C.coralMuted,
-      rule: '#E5B4AA',
-      label: '#8A2E1E',
-    },
-    features: [
-      { id: 'send-home', icon: '✈️', name: 'Send home', desc: 'Remittance made easy', route: '/remittance' },
-      { id: 'built-for-you', icon: '⭐', name: 'Built for you', desc: 'Why Sarathy is different', route: '/marketplace' },
-    ],
-  },
-]
-
 export interface TodayViewProps {
   safeToSpend: number
   currency: string
@@ -112,12 +47,11 @@ export interface TodayViewProps {
   totalBalance?: ReactNode
   heroRef?: Ref<HTMLDivElement>
   actionsRef?: Ref<HTMLDivElement>
-  monthTileRef?: Ref<HTMLButtonElement>
+  monthCardRef?: Ref<HTMLDivElement>
   onLogExpense: () => void
   onVoiceLog: () => void
   onAskSarathy: () => void
   onTapBreakdown: () => void
-  onOpenMonth: () => void
   onSetupBudget?: () => void
   moodSlot?: ReactNode
   accountsSlot?: ReactNode
@@ -132,19 +66,17 @@ export default function TodayView({
   totalBalance,
   heroRef,
   actionsRef,
-  monthTileRef,
+  monthCardRef,
   onLogExpense,
   onVoiceLog,
   onAskSarathy,
   onTapBreakdown,
-  onOpenMonth,
   onSetupBudget,
   moodSlot,
   accountsSlot,
   monthCardSlot,
   children,
 }: TodayViewProps) {
-  const router = useRouter()
   const [voiceSupported, setVoiceSupported] = useState(false)
 
   useEffect(() => {
@@ -171,7 +103,6 @@ export default function TodayView({
           overflow: 'hidden',
         }}
       >
-        {/* Mandala watermark */}
         <svg
           aria-hidden="true"
           style={{
@@ -208,7 +139,6 @@ export default function TodayView({
           </g>
         </svg>
 
-        {/* Differentiation badge */}
         <div
           style={{
             display: 'inline-flex',
@@ -236,7 +166,6 @@ export default function TodayView({
           </span>
         </div>
 
-        {/* Safe to spend */}
         <p
           style={{
             fontSize: 10,
@@ -336,9 +265,7 @@ export default function TodayView({
         )}
       </div>
 
-      {/* ── SCROLLABLE BODY ── */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {/* Action row */}
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 24 }}>
         <div ref={actionsRef} style={{ display: 'flex', gap: 8, padding: '16px 16px 4px' }}>
           <button
             type="button"
@@ -397,89 +324,15 @@ export default function TodayView({
           </button>
         </div>
 
-        {/* Money mood */}
         {moodSlot}
 
-        {/* Connected accounts */}
         {accountsSlot && <div style={{ margin: '4px 16px 0' }}>{accountsSlot}</div>}
 
-        {/* This month summary — always visible */}
-        {monthCardSlot && <div style={{ margin: '12px 16px 0' }}>{monthCardSlot}</div>}
-
-        {/* ── Feature sections ── */}
-        {SECTIONS.map((section) => (
-          <div key={section.id}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 8px' }}>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  color: section.color.label,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {section.title}
-              </span>
-              <div style={{ flex: 1, height: 1, background: section.color.rule }} />
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 6,
-                padding: '0 16px',
-              }}
-            >
-              {section.features.map((feat) => {
-                const isMonth = feat.route === 'this-month'
-                return (
-                  <button
-                    key={feat.id}
-                    type="button"
-                    ref={isMonth ? monthTileRef : undefined}
-                    onClick={() => {
-                      if (isMonth) onOpenMonth()
-                      else router.push(feat.route)
-                    }}
-                    style={{
-                      background: section.color.bg,
-                      border: `1px solid ${section.color.border}`,
-                      borderRadius: 12,
-                      padding: '12px 13px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ fontSize: 18, marginBottom: 5 }}>{feat.icon}</div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: section.color.title,
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {feat.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: section.color.desc,
-                        lineHeight: 1.4,
-                        marginTop: 2,
-                      }}
-                    >
-                      {feat.desc}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+        {monthCardSlot && (
+          <div ref={monthCardRef} style={{ margin: '12px 16px 0' }}>
+            {monthCardSlot}
           </div>
-        ))}
+        )}
       </div>
 
       {children}
