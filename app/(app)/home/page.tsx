@@ -20,6 +20,7 @@ import TrustLayerModal from '@/components/home/TrustLayerModal'
 import ConnectedAccountsStrip from '@/components/home/ConnectedAccountsStrip'
 import AccountsSummaryLine from '@/components/home/AccountsSummaryLine'
 import TodayView from '@/components/home/TodayView'
+import ThisMonthCard from '@/components/home/ThisMonthCard'
 import MonthSummarySheet from '@/components/home/MonthSummarySheet'
 import HomeWalkthrough from '@/components/home/HomeWalkthrough'
 import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
@@ -251,7 +252,10 @@ export default function HomePage() {
       <TodayView
         safeToSpend={safeData.safeToSpend}
         currency={currency}
-        hasBudget={Boolean(profile.planning_amount && profile.planning_amount > 0)}
+        showSafeToSpend={
+          Boolean(profile.planning_amount && profile.planning_amount > 0) &&
+          entries.length > 0
+        }
         totalBalance={<AccountsSummaryLine profile={profile} />}
         heroRef={heroAnchorRef}
         actionsRef={actionsTourRef}
@@ -261,12 +265,30 @@ export default function HomePage() {
         onAskSarathy={() => router.push('/sarathy')}
         onTapBreakdown={() => setShowTrust(true)}
         onOpenMonth={() => setShowMonth(true)}
+        onSetupBudget={() => {
+          document.getElementById('this-month-card')?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          })
+        }}
         moodSlot={<MoodCheckIn userId={profile.id} variant="inline" />}
         accountsSlot={
           <ConnectedAccountsStrip
             profile={profile}
             existingEntries={entries}
             onSynced={loadData}
+          />
+        }
+        monthCardSlot={
+          <ThisMonthCard
+            profile={profile}
+            monthTotal={monthTotal}
+            currency={currency}
+            onLogFirstExpense={() => setLogMode('manual')}
+            onBudgetUpdated={(planningAmount) => {
+              setProfile((prev) => (prev ? { ...prev, planning_amount: planningAmount } : prev))
+              void loadData()
+            }}
           />
         }
       >

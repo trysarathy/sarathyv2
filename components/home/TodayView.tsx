@@ -104,8 +104,11 @@ const SECTIONS: {
 export interface TodayViewProps {
   safeToSpend: number
   currency: string
-  /** When false, hero shows a CTA to set budget instead of a calculated number. */
-  hasBudget: boolean
+  /**
+   * When true, hero shows the calculated safe-to-spend.
+   * Requires planning_amount set AND at least one expense logged.
+   */
+  showSafeToSpend: boolean
   totalBalance?: ReactNode
   heroRef?: Ref<HTMLDivElement>
   actionsRef?: Ref<HTMLDivElement>
@@ -115,15 +118,17 @@ export interface TodayViewProps {
   onAskSarathy: () => void
   onTapBreakdown: () => void
   onOpenMonth: () => void
+  onSetupBudget?: () => void
   moodSlot?: ReactNode
   accountsSlot?: ReactNode
+  monthCardSlot?: ReactNode
   children?: ReactNode
 }
 
 export default function TodayView({
   safeToSpend,
   currency,
-  hasBudget,
+  showSafeToSpend,
   totalBalance,
   heroRef,
   actionsRef,
@@ -133,8 +138,10 @@ export default function TodayView({
   onAskSarathy,
   onTapBreakdown,
   onOpenMonth,
+  onSetupBudget,
   moodSlot,
   accountsSlot,
+  monthCardSlot,
   children,
 }: TodayViewProps) {
   const router = useRouter()
@@ -225,7 +232,7 @@ export default function TodayView({
               letterSpacing: '0.06em',
             }}
           >
-            Built for you — not ChatGPT
+            Your money companion
           </span>
         </div>
 
@@ -244,7 +251,7 @@ export default function TodayView({
         >
           Safe to spend today
         </p>
-        {hasBudget ? (
+        {showSafeToSpend ? (
           <>
             <p
               style={{
@@ -293,7 +300,15 @@ export default function TodayView({
         ) : (
           <button
             type="button"
-            onClick={() => router.push('/profile')}
+            onClick={() => {
+              if (onSetupBudget) onSetupBudget()
+              else {
+                document.getElementById('this-month-card')?.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'center',
+                })
+              }
+            }}
             style={{
               background: 'none',
               border: 'none',
@@ -387,6 +402,9 @@ export default function TodayView({
 
         {/* Connected accounts */}
         {accountsSlot && <div style={{ margin: '4px 16px 0' }}>{accountsSlot}</div>}
+
+        {/* This month summary — always visible */}
+        {monthCardSlot && <div style={{ margin: '12px 16px 0' }}>{monthCardSlot}</div>}
 
         {/* ── Feature sections ── */}
         {SECTIONS.map((section) => (
