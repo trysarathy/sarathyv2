@@ -76,9 +76,6 @@ export function formatContextForPrompt(ctx: CompanionContext): string {
   const safe = formatCurrency(today.safeToSpend, currency)
   const budget = formatCurrency(today.budget, currency)
   const spent = formatCurrency(today.spentThisMonth, currency)
-  const todaySpent =
-    today.spentToday > 0 ? ` · ${formatCurrency(today.spentToday, currency)} spent today` : ''
-
   const deviationText =
     spending.notableDeviations.length > 0
       ? spending.notableDeviations
@@ -100,7 +97,7 @@ export function formatContextForPrompt(ctx: CompanionContext): string {
   const homeContext = [user.homeCountry, user.currentCountry].filter(Boolean).join(' → ')
 
   const lines = [
-    `${user.firstName} · ${currency} · ${today.status} · safe ${safe}/day · ${today.daysLeftInMonth} days left · ${spent}/${budget} spent this month${todaySpent}`,
+    `${user.firstName} · ${currency} · ${today.status} · safe ${safe}/day (today only) · ${formatCurrency(today.spentToday, currency)} spent today · ${today.daysLeftInMonth} days left · ${spent}/${budget} spent this month`,
     deviationText,
     savingsText,
     `streak ${gamification.streak} · ${gamification.levelName} (${gamification.totalXp} XP) · ${formatMoodTrend(ctx)}`,

@@ -8,21 +8,8 @@ interface Props {
 }
 
 export default function TrustLayerModal({ safeData, onClose }: Props) {
-  const rows = [
-    { label: 'Your plan this month', value: safeData.planAmount, sign: '+', color: 'text-safe' },
-    { label: 'Bills still due', value: -safeData.fixedLeft, sign: '−', color: 'text-danger' },
-    { label: 'Already spent', value: -safeData.alreadySpent, sign: '−', color: 'text-danger' },
-    { label: 'Safety buffer (10%)', value: -safeData.buffer, sign: '−', color: 'text-warning' },
-    ...(safeData.savings.monthlyGoal > 0
-      ? [{
-          label: 'Protected savings',
-          value: -safeData.savings.monthlyGoal,
-          sign: '−' as const,
-          color: 'text-saffron',
-        }]
-      : []),
-    { label: 'Free to use', value: safeData.freeToUse, sign: '=', color: 'text-ink font-semibold' },
-  ]
+  const dailyBudget = safeData.dailyBudget
+  const spentToday = safeData.spentToday
 
   return (
     <>
@@ -34,32 +21,55 @@ export default function TrustLayerModal({ safeData, onClose }: Props) {
         </div>
 
         <p className="text-ink-3 text-sm mb-5">
-          Every number here is from your own data — nothing made up.
+          Today&apos;s safe-to-spend only counts expenses logged for today. Past days show up in your monthly progress — not here.
         </p>
 
         <div className="flex flex-col gap-3 mb-5">
-          {rows.map((row, i) => (
-            <div key={i} className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`text-sm font-mono w-4 ${row.color}`}>{row.sign}</span>
-                <span className="text-sm text-ink">{row.label}</span>
-              </div>
-              <span className={`text-sm font-semibold ${row.color}`}>
-                {formatCurrency(Math.abs(row.value), safeData.currency)}
-              </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono w-4 text-safe">+</span>
+              <span className="text-sm text-ink">Daily budget ({safeData.daysLeft} days left)</span>
             </div>
-          ))}
+            <span className="text-sm font-semibold text-safe">
+              {formatCurrency(dailyBudget, safeData.currency)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono w-4 text-danger">−</span>
+              <span className="text-sm text-ink">Spent today</span>
+            </div>
+            <span className="text-sm font-semibold text-danger">
+              {formatCurrency(spentToday, safeData.currency)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-cream">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono w-4 text-ink font-semibold">=</span>
+              <span className="text-sm text-ink font-semibold">Safe to spend today</span>
+            </div>
+            <span className="text-sm font-semibold text-ink">
+              {formatCurrency(safeData.safeToSpend, safeData.currency)}
+            </span>
+          </div>
         </div>
 
-        <div className="bg-cream rounded-xl p-4 border border-saffron-soft">
-          <p className="text-xs text-ink-3 mb-1">Spread over {safeData.daysLeft} days remaining</p>
-          <p className="font-fraunces text-2xl font-semibold text-saffron">
-            {formatCurrency(safeData.safeToSpend, safeData.currency)} / day
+        <div className="bg-cream rounded-xl p-4 border border-saffron-soft mb-3">
+          <p className="text-xs text-ink-3 mb-1">
+            Monthly plan ÷ {safeData.daysLeft} days remaining
           </p>
-          <p className="text-xs text-ink-3 mt-1">That's your safe-to-spend today.</p>
+          <p className="font-fraunces text-2xl font-semibold text-saffron">
+            {formatCurrency(safeData.safeToSpend, safeData.currency)} left today
+          </p>
+          <p className="text-xs text-ink-3 mt-1">Based on today&apos;s expenses only.</p>
         </div>
 
-        <button className="btn-primary mt-4" onClick={onClose}>Got it 👍</button>
+        <p className="text-xs text-ink-3 mb-4 leading-relaxed">
+          This month so far: {formatCurrency(safeData.alreadySpent, safeData.currency)} of{' '}
+          {formatCurrency(safeData.planAmount, safeData.currency)} — that lives in your monthly progress bar.
+        </p>
+
+        <button className="btn-primary mt-1" onClick={onClose}>Got it 👍</button>
       </div>
     </>
   )

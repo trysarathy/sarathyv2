@@ -119,6 +119,10 @@ export interface SafeToSpendData {
   planAmount: number
   fixedLeft: number
   alreadySpent: number
+  /** Sum of expenses logged for the as-of calendar day only. */
+  spentToday: number
+  /** planAmount ÷ daysLeft — today's daily budget before today's spend. */
+  dailyBudget: number
   buffer: number
   freeToUse: number
   daysLeft: number

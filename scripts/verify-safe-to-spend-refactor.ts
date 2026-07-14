@@ -1,7 +1,5 @@
 /**
- * Verifies calculateSafeToSpendAsOf(today) matches a direct inline replica of the
- * pre-refactor calculateSafeToSpend implementation (byte-identical JSON).
- * Also checks dream finalization idempotency.
+ * Verifies today-only safe-to-spend math and dream finalization idempotency.
  *
  * Run: npm run verify:safe-to-spend
  */
@@ -13,76 +11,8 @@ import {
   addMonthsToMonthKey,
   computeDreamFinalization,
 } from '../lib/dream-goal'
+import { todayInSingapore } from '../lib/sarathy/sgt'
 import type { BudgetEntry, FixedSpending, Profile } from '../types'
-
-function legacyCalculateSafeToSpend(
-  profile: Profile,
-  entries: BudgetEntry[],
-  fixedSpending: FixedSpending[]
-) {
-  const now = new Date()
-  const today = now.getDate()
-  const year = now.getFullYear()
-  const month = now.getMonth()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const daysLeft = daysInMonth - today + 1
-  const planAmount = profile.planning_amount || 0
-  const savingsGoal = profile.monthly_savings_goal ?? 0
-
-  const fixedLeft = fixedSpending
-    .filter(f => f.is_active && (f.due_day || 1) >= today)
-    .reduce((sum, f) => sum + f.amount, 0)
-
-  const currentMonthEntries = entries.filter(e => {
-    const entryDate = new Date(e.entry_date)
-    return entryDate.getMonth() === month && entryDate.getFullYear() === year
-  })
-  const alreadySpent = currentMonthEntries.reduce((sum, e) => sum + e.amount, 0)
-
-  const buffer = planAmount * 0.10
-  const roomAfterEssentials = planAmount - fixedLeft - alreadySpent - buffer
-  const freeToUse = roomAfterEssentials - savingsGoal
-  const safeToSpend = Math.max(0, Math.round(freeToUse / Math.max(daysLeft, 1)))
-
-  let savingsStatus: 'none' | 'protected' | 'at_risk' = 'none'
-  let stillPossible: number | null = null
-  if (savingsGoal > 0) {
-    if (roomAfterEssentials >= savingsGoal) {
-      savingsStatus = 'protected'
-    } else {
-      savingsStatus = 'at_risk'
-      stillPossible = Math.max(0, Math.round(roomAfterEssentials))
-    }
-  }
-
-  const dailyIdeal = planAmount / daysInMonth
-  let status: 'safe' | 'tight' | 'danger' = 'safe'
-  if (safeToSpend <= 0) status = 'danger'
-  else if (safeToSpend < dailyIdeal * 0.5) status = 'tight'
-
-  let safetyLine = ''
-  if (status === 'safe') {
-    safetyLine = `You're safe till the ${daysInMonth}th 🟢`
-  } else if (status === 'tight') {
-    safetyLine = `A bit tight — watch spending till the ${daysInMonth}th 🟡`
-  } else {
-    safetyLine = `At risk this week — let's fix it 🔴`
-  }
-
-  return {
-    safeToSpend,
-    status,
-    safetyLine,
-    planAmount,
-    fixedLeft,
-    alreadySpent,
-    buffer,
-    freeToUse: Math.max(0, freeToUse),
-    daysLeft,
-    savingsStatus,
-    stillPossible,
-  }
-}
 
 const profile: Profile = {
   id: 'test-user',
@@ -92,7 +22,7 @@ const profile: Profile = {
   user_types: ['student'],
   primary_currency: 'SGD',
   language_preference: 'en',
-  planning_amount: 2000,
+  planning_amount: 3100,
   total_money: null,
   money_type: null,
   responsible_for: null,
@@ -126,24 +56,29 @@ const fixed: FixedSpending[] = [
   },
 ]
 
+/** Fixed calendar day for deterministic asserts (not "now"). */
+const AS_OF = { year: 2026, month: 6, day: 11 } // 2026-07-11
+const AS_OF_DATE = '2026-07-11'
+const DAYS_LEFT = 31 - 11 + 1 // 21
+
 const entries: BudgetEntry[] = [
   {
-    id: 'e1',
+    id: 'e-today',
     user_id: 'test-user',
     category: 'Food',
-    amount: 120,
-    description: 'Lunch',
-    entry_date: '2026-07-08',
+    amount: 50,
+    description: 'Lunch today',
+    entry_date: AS_OF_DATE,
     payment_method: null,
     logged_via: 'manual',
-    created_at: '2026-07-08T10:00:00Z',
+    created_at: '2026-07-11T10:00:00Z',
   },
   {
-    id: 'e2',
+    id: 'e-past',
     user_id: 'test-user',
-    category: 'Transport',
-    amount: 40,
-    description: null,
+    category: 'Shopping',
+    amount: 900,
+    description: 'Past overspend',
     entry_date: '2026-07-05',
     payment_method: null,
     logged_via: 'manual',
@@ -171,47 +106,47 @@ function assertEqual(label: string, a: unknown, b: unknown) {
   }
 }
 
-const legacy = legacyCalculateSafeToSpend(profile, entries, fixed)
+function assertTrue(label: string, cond: boolean) {
+  if (!cond) {
+    console.error(`FAIL ${label}`)
+    failures++
+  } else {
+    console.log(`OK   ${label}`)
+  }
+}
+
+const snapshot = calculateSafeToSpendAsOf(profile, entries, fixed, AS_OF)
+const dailyBudget = Math.round(3100 / DAYS_LEFT)
+const expectedSafe = Math.max(0, Math.round(dailyBudget - 50))
+
+assertEqual('spentToday is only as-of day', snapshot.spentToday, 50)
+assertEqual('alreadySpent includes whole month', snapshot.alreadySpent, 950)
+assertEqual('dailyBudget = plan ÷ daysLeft', snapshot.dailyBudget, dailyBudget)
+assertEqual(
+  'safeToSpend ignores past-day overspend',
+  snapshot.safeToSpend,
+  expectedSafe
+)
+assertTrue(
+  'past overspend does not zero out today',
+  snapshot.safeToSpend > 0 && snapshot.alreadySpent > snapshot.planAmount * 0.2
+)
+
+const todaySgt = todayInSingapore()
+const [y, m, d] = todaySgt.split('-').map(Number)
 const wrapped = calculateSafeToSpend(profile, entries, fixed)
 const asOfToday = calculateSafeToSpendAsOf(profile, entries, fixed, {
-  year: new Date().getFullYear(),
-  month: new Date().getMonth(),
-  day: new Date().getDate(),
+  year: y,
+  month: m - 1,
+  day: d,
 })
 
 assertEqual(
-  'wrapper matches legacy core fields',
-  {
-    safeToSpend: legacy.safeToSpend,
-    status: legacy.status,
-    safetyLine: legacy.safetyLine,
-    planAmount: legacy.planAmount,
-    fixedLeft: legacy.fixedLeft,
-    alreadySpent: legacy.alreadySpent,
-    buffer: legacy.buffer,
-    freeToUse: legacy.freeToUse,
-    daysLeft: legacy.daysLeft,
-  },
-  {
-    safeToSpend: wrapped.safeToSpend,
-    status: wrapped.status,
-    safetyLine: wrapped.safetyLine,
-    planAmount: wrapped.planAmount,
-    fixedLeft: wrapped.fixedLeft,
-    alreadySpent: wrapped.alreadySpent,
-    buffer: wrapped.buffer,
-    freeToUse: wrapped.freeToUse,
-    daysLeft: wrapped.daysLeft,
-  }
-)
-
-assertEqual(
-  'calculateSafeToSpend === calculateSafeToSpendAsOf(today)',
+  'calculateSafeToSpend === calculateSafeToSpendAsOf(SGT today)',
   stripDream(wrapped),
   stripDream(asOfToday)
 )
 
-const todaySgt = '2026-08-01'
 const julyProfile: Profile = {
   ...profile,
   goal_started_at: '2026-07-01',
@@ -219,14 +154,15 @@ const julyProfile: Profile = {
   goal_saved_amount: 0,
 }
 
-const first = computeDreamFinalization(julyProfile, entries, fixed, todaySgt)
+const finalizeAsOf = '2026-08-01'
+const first = computeDreamFinalization(julyProfile, entries, fixed, finalizeAsOf)
 if (!first) {
   console.error('FAIL finalize produced a patch for July')
   failures++
 } else {
   console.log('OK   finalize credits July when protected at month-end')
   const afterFirst: Profile = { ...julyProfile, ...first }
-  const second = computeDreamFinalization(afterFirst, entries, fixed, todaySgt)
+  const second = computeDreamFinalization(afterFirst, entries, fixed, finalizeAsOf)
   if (second !== null) {
     console.error('FAIL finalize is not idempotent on second run', second)
     failures++
@@ -238,10 +174,10 @@ if (!first) {
 const caughtUp: Profile = {
   ...julyProfile,
   goal_started_at: '2026-07-01',
-  goal_progress_through_month: addMonthsToMonthKey(todaySgt.slice(0, 7), -1),
+  goal_progress_through_month: addMonthsToMonthKey(finalizeAsOf.slice(0, 7), -1),
   goal_saved_amount: 150,
 }
-const noop = computeDreamFinalization(caughtUp, entries, fixed, todaySgt)
+const noop = computeDreamFinalization(caughtUp, entries, fixed, finalizeAsOf)
 if (noop !== null) {
   console.error('FAIL expected null when already finalized through previous month', noop)
   failures++

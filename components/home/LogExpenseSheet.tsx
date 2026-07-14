@@ -53,6 +53,7 @@ export default function LogExpenseSheet({
   const profileCurrency = getProfileDisplayCurrency(profile)
 
   const [amount, setAmount] = useState('')
+  const [entryDate, setEntryDate] = useState(todayInSingapore())
   const [category, setCategory] = useState('Food')
   const [description, setDescription] = useState('')
   const [mood, setMood] = useState('')
@@ -172,7 +173,8 @@ export default function LogExpenseSheet({
         return
       }
 
-      const entryDate = todayInSingapore()
+      const today = todayInSingapore()
+      const expenseDate = entryDate && entryDate <= today ? entryDate : today
       let finalAmount = parseFloat(amount)
       let originalAmount = finalAmount
       let originalCurrency = currency
@@ -195,7 +197,7 @@ export default function LogExpenseSheet({
           {
             user_id: user.id,
             mood,
-            entry_date: entryDate,
+            entry_date: today,
           },
           { onConflict: 'user_id,entry_date' }
         )
@@ -211,7 +213,7 @@ export default function LogExpenseSheet({
         original_amount: originalAmount,
         original_currency: originalCurrency,
         description: description || category,
-        entry_date: entryDate,
+        entry_date: expenseDate,
         logged_via: 'manual',
       })
 
@@ -354,6 +356,20 @@ export default function LogExpenseSheet({
             )}
           </div>
         )}
+
+        <div className="mb-4">
+          <label htmlFor="expense-date" className="log-sheet-section-kicker">
+            Date
+          </label>
+          <input
+            id="expense-date"
+            type="date"
+            value={entryDate}
+            max={todayInSingapore()}
+            onChange={(e) => setEntryDate(e.target.value || todayInSingapore())}
+            className="log-sheet-input"
+          />
+        </div>
 
         <input
           type="text"

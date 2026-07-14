@@ -11,6 +11,12 @@ export interface SafeToSpendAsOf {
   day: number
 }
 
+function asOfDateString(asOf: SafeToSpendAsOf): string {
+  const mm = String(asOf.month + 1).padStart(2, '0')
+  const dd = String(asOf.day).padStart(2, '0')
+  return `${asOf.year}-${mm}-${dd}`
+}
+
 /** Core safe-to-spend calculation for an explicit calendar day (local date parts). */
 export function calculateSafeToSpendAsOf(
   profile: Profile,
@@ -19,6 +25,8 @@ export function calculateSafeToSpendAsOf(
   asOf: SafeToSpendAsOf
 ): SafeToSpendData {
   const { year, month, day: today } = asOf
+  const asOfDate = asOfDateString(asOf)
+  const monthKey = asOfDate.slice(0, 7)
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const daysLeft = daysInMonth - today + 1
   const currency = getProfileDisplayCurrency(profile)
@@ -29,17 +37,23 @@ export function calculateSafeToSpendAsOf(
     .filter(f => f.is_active && (f.due_day || 1) >= today)
     .reduce((sum, f) => sum + f.amount, 0)
 
-  const currentMonthEntries = entries.filter(e => {
-    const entryDate = new Date(e.entry_date)
-    return entryDate.getMonth() === month && entryDate.getFullYear() === year
-  })
+  // Month totals — used for monthly progress / trust breakdown, not today's safe number
+  const currentMonthEntries = entries.filter(e => e.entry_date.slice(0, 7) === monthKey)
   const alreadySpent = currentMonthEntries.reduce((sum, e) => sum + e.amount, 0)
+
+  // Today-only spend drives the hero safe-to-spend
+  const spentToday = entries
+    .filter(e => e.entry_date === asOfDate)
+    .reduce((sum, e) => sum + e.amount, 0)
 
   const buffer = planAmount * 0.10
 
   const roomAfterEssentials = planAmount - fixedLeft - alreadySpent - buffer
   const freeToUse = roomAfterEssentials - savingsGoal
-  const safeToSpend = Math.max(0, Math.round(freeToUse / Math.max(daysLeft, 1)))
+
+  // Daily budget = monthly plan ÷ days remaining; safe today = that minus today's spend only
+  const dailyBudget = planAmount / Math.max(daysLeft, 1)
+  const safeToSpend = Math.max(0, Math.round(dailyBudget - spentToday))
 
   let savingsStatus: SafeToSpendData['savings']['status'] = 'none'
   let stillPossible: number | null = null
@@ -73,6 +87,8 @@ export function calculateSafeToSpendAsOf(
     planAmount,
     fixedLeft,
     alreadySpent,
+    spentToday,
+    dailyBudget: Math.round(dailyBudget),
     buffer,
     freeToUse: Math.max(0, freeToUse),
     daysLeft,
@@ -92,11 +108,12 @@ export function calculateSafeToSpend(
   entries: BudgetEntry[],
   fixedSpending: FixedSpending[]
 ): SafeToSpendData {
-  const now = new Date()
+  const today = todayInSingapore()
+  const [year, month, day] = today.split('-').map(Number)
   return calculateSafeToSpendAsOf(profile, entries, fixedSpending, {
-    year: now.getFullYear(),
-    month: now.getMonth(),
-    day: now.getDate(),
+    year,
+    month: month - 1,
+    day,
   })
 }
 

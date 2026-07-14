@@ -196,6 +196,17 @@ export default function TodayView({
             >
               {formatCurrency(safeToSpend, currency)}
             </p>
+            <p
+              style={{
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.42)',
+                marginBottom: 6,
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              Based on today&apos;s expenses only
+            </p>
             {totalBalance && (
               <div
                 style={{

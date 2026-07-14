@@ -119,6 +119,9 @@ export default function SafeToSpendHero({
       <p className={`safe-number-monument ${NUMBER_COLOR[safeData.status]}`}>
         {formatCurrency(safeData.safeToSpend, currency)}
       </p>
+      <p className="text-indigo-muted text-[11px] mt-1 mb-1">
+        Based on today&apos;s expenses only
+      </p>
 
       <AccountsSummaryLine profile={profile} />
 
@@ -128,7 +131,8 @@ export default function SafeToSpendHero({
         <div className="flex justify-between items-center">
           <p className="text-[11px] text-indigo-muted uppercase tracking-wide">Today</p>
           <p className="text-[11px] text-ink-on-indigo/60 tabular-nums">
-            {formatCurrency(todaySpent, currency)} / {formatCurrency(safeData.safeToSpend, currency)}
+            {formatCurrency(todaySpent, currency)} /{' '}
+            {formatCurrency(safeData.dailyBudget, currency)}
           </p>
         </div>
         <div className="home-meter-track">
