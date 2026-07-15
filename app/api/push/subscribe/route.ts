@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   )
 
-  const { error } = await supabase.from('push_subscriptions').upsert(
+  // 1–2. Save subscription first — never touch profiles if this fails
+  const { error: insertError } = await supabase.from('push_subscriptions').upsert(
     {
       user_id: user.id,
       endpoint,
@@ -37,18 +38,38 @@ export async function POST(req: NextRequest) {
     { onConflict: 'endpoint' }
   )
 
-  if (error) {
-    console.error('push subscribe error:', error.message)
-    return NextResponse.json({ error: 'Could not save subscription' }, { status: 500 })
+  if (insertError) {
+    console.error('push subscribe error:', insertError.message)
+    // Do NOT update notifications_prompt_seen or notifications_enabled
+    return NextResponse.json(
+      {
+        error: 'Could not save subscription',
+        detail: insertError.message,
+      },
+      { status: 500 }
+    )
   }
 
-  await supabase
+  // 3. Only after a successful save — enable notifications + mark prompt seen
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({
       notifications_enabled: true,
       notifications_prompt_seen: true,
     })
     .eq('id', user.id)
+
+  if (profileError) {
+    console.error('push subscribe profile update error:', profileError.message)
+    // Subscription is saved; still report failure so the client can retry profile flags
+    return NextResponse.json(
+      {
+        error: 'Could not update notification preferences',
+        detail: profileError.message,
+      },
+      { status: 500 }
+    )
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -8,6 +8,7 @@ interface Props {
   onEnable: () => void | Promise<void>
   onLater: () => void | Promise<void>
   busy?: boolean
+  error?: string | null
 }
 
 export default function NotificationOptInPrompt({
@@ -15,8 +16,10 @@ export default function NotificationOptInPrompt({
   onEnable,
   onLater,
   busy = false,
+  error = null,
 }: Props) {
   const tone = getToneLabel(vibe)
+  const hasError = Boolean(error)
 
   return (
     <>
@@ -38,6 +41,13 @@ export default function NotificationOptInPrompt({
           It&apos;ll sound exactly like <span className="font-semibold text-ink">{tone}</span>.
           Want to turn it on?
         </p>
+
+        {hasError && (
+          <div className="bg-red-50 text-danger text-sm px-4 py-3 rounded-xl mb-4">
+            Something went wrong — try again?
+          </div>
+        )}
+
         <div className="flex flex-col gap-2">
           <button
             type="button"
@@ -45,7 +55,7 @@ export default function NotificationOptInPrompt({
             disabled={busy}
             onClick={() => void onEnable()}
           >
-            {busy ? 'Turning on…' : 'Yes please!'}
+            {busy ? 'Turning on…' : hasError ? 'Retry' : 'Yes please!'}
           </button>
           <button
             type="button"

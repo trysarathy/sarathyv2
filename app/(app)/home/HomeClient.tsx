@@ -61,6 +61,7 @@ export default function HomeClient() {
   const [entrySaveError, setEntrySaveError] = useState<string | null>(null)
   const [showNotifyPrompt, setShowNotifyPrompt] = useState(false)
   const [notifyBusy, setNotifyBusy] = useState(false)
+  const [notifyError, setNotifyError] = useState('')
   const deepLinkHandled = useRef(false)
   const [xpFloat, setXpFloat] = useState<{ show: boolean; x: number; y: number; xp: number }>({
     show: false,
@@ -169,17 +170,20 @@ export default function HomeClient() {
   const dismissNotifyPrompt = async (enabled: boolean) => {
     if (!profile) return
     setNotifyBusy(true)
+    setNotifyError('')
     try {
       if (enabled) {
         const result = await subscribeToPush()
         if (!result.ok) {
-          console.warn(result.error)
+          console.warn('[notifications]', result.error)
+          // Keep prompt open + do NOT mark notifications_prompt_seen
+          setNotifyError(result.error || 'Something went wrong')
+          return
         }
+        // API already sets enabled + prompt_seen; also set default time locally
         await supabase
           .from('profiles')
           .update({
-            notifications_enabled: result.ok,
-            notifications_prompt_seen: true,
             notification_time: profile.notification_time || '20:00:00',
           })
           .eq('id', profile.id)
@@ -187,12 +191,14 @@ export default function HomeClient() {
           prev
             ? {
                 ...prev,
-                notifications_enabled: result.ok,
+                notifications_enabled: true,
                 notifications_prompt_seen: true,
               }
             : prev
         )
+        setShowNotifyPrompt(false)
       } else {
+        // Explicit dismiss only
         await supabase
           .from('profiles')
           .update({
@@ -205,10 +211,13 @@ export default function HomeClient() {
             ? { ...prev, notifications_enabled: false, notifications_prompt_seen: true }
             : prev
         )
+        setShowNotifyPrompt(false)
       }
+    } catch (err) {
+      console.error('[notifications] opt-in failed:', err)
+      setNotifyError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setNotifyBusy(false)
-      setShowNotifyPrompt(false)
     }
   }
 
@@ -535,6 +544,7 @@ export default function HomeClient() {
           <NotificationOptInPrompt
             vibe={profile.companion_vibe}
             busy={notifyBusy}
+            error={notifyError}
             onEnable={() => dismissNotifyPrompt(true)}
             onLater={() => dismissNotifyPrompt(false)}
           />

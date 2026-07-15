@@ -25,6 +25,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState('')
   const [showNotifyPrompt, setShowNotifyPrompt] = useState(false)
   const [notifyBusy, setNotifyBusy] = useState(false)
+  const [notifyError, setNotifyError] = useState('')
   const [finishedUserId, setFinishedUserId] = useState<string | null>(null)
 
   // Step 1
@@ -138,22 +139,24 @@ export default function OnboardingPage() {
       return
     }
     setNotifyBusy(true)
+    setNotifyError('')
     try {
       if (enable) {
         const result = await subscribeToPush()
         if (!result.ok) {
           console.warn('[notifications]', result.error)
+          // Keep prompt open — do NOT mark notifications_prompt_seen
+          setNotifyError(result.error || 'Something went wrong')
+          return
         }
+        // API already sets enabled + prompt_seen; set default reminder time
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({
-            notifications_enabled: result.ok,
-            notifications_prompt_seen: true,
-            notification_time: '20:00:00',
-          })
+          .update({ notification_time: '20:00:00' })
           .eq('id', finishedUserId)
-        if (updateError) console.error('[notifications] profile update:', updateError.message)
+        if (updateError) console.error('[notifications] time update:', updateError.message)
       } else {
+        // Explicit "Maybe later" only
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -163,12 +166,13 @@ export default function OnboardingPage() {
           .eq('id', finishedUserId)
         if (updateError) console.error('[notifications] profile update:', updateError.message)
       }
-    } catch (err) {
-      console.error('[notifications] opt-in failed:', err)
-    } finally {
-      setNotifyBusy(false)
       setShowNotifyPrompt(false)
       router.replace('/home')
+    } catch (err) {
+      console.error('[notifications] opt-in failed:', err)
+      setNotifyError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setNotifyBusy(false)
     }
   }
 
@@ -501,6 +505,7 @@ export default function OnboardingPage() {
         <NotificationOptInPrompt
           vibe={vibe || 'calm_mentor'}
           busy={notifyBusy}
+          error={notifyError}
           onEnable={() => finishNotifyAndGoHome(true)}
           onLater={() => finishNotifyAndGoHome(false)}
         />
