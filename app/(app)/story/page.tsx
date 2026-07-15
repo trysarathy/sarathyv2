@@ -10,13 +10,14 @@ import {
   getMonthEntries,
 } from '@/lib/calculations'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
-import { todayInSingapore } from '@/lib/sarathy/sgt'
+import { todayInSingapore, formatRelativeEntryDate } from '@/lib/sarathy/sgt'
 import { Profile, BudgetEntry, PLCategory } from '@/types'
 import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
 import { friendlyExpenseSaveError } from '@/lib/booth/friendly-errors'
 import TabBar from '@/components/ui/TabBar'
 import ExploreSections from '@/components/story/ExploreSections'
 import MonthSummarySheet from '@/components/home/MonthSummarySheet'
+import ExpenseDatePicker from '@/components/home/ExpenseDatePicker'
 
 export default function StoryPage() {
   const router = useRouter()
@@ -171,7 +172,7 @@ export default function StoryPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-ink truncate">{entry.description || entry.category}</p>
                     <p className="text-xs text-ink-3">
-                      {new Date(entry.entry_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
+                      {formatRelativeEntryDate(entry.entry_date)}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-ink shrink-0">{formatCurrency(entry.amount, currency)}</span>
@@ -212,12 +213,14 @@ export default function StoryPage() {
               placeholder="Description"
               className="input-field mb-3"
             />
-            <input
-              type="date"
-              value={editDate}
-              onChange={(e) => setEditDate(e.target.value)}
-              className="input-field mb-3"
-            />
+            <div className="mb-3">
+              <ExpenseDatePicker
+                value={editDate}
+                onChange={setEditDate}
+                max={todayInSingapore()}
+                id="story-edit-expense-date"
+              />
+            </div>
             <select
               value={editCategory}
               onChange={(e) => setEditCategory(e.target.value)}

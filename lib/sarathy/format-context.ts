@@ -97,7 +97,7 @@ export function formatContextForPrompt(ctx: CompanionContext): string {
   const homeContext = [user.homeCountry, user.currentCountry].filter(Boolean).join(' → ')
 
   const lines = [
-    `${user.firstName} · ${currency} · ${today.status} · safe ${safe}/day (today only) · ${formatCurrency(today.spentToday, currency)} spent today · ${today.daysLeftInMonth} days left · ${spent}/${budget} spent this month`,
+    `${user.firstName} · ${currency} · preferred_language ${user.preferredLanguage} · ${today.status} · safe ${safe}/day (today only) · ${formatCurrency(today.spentToday, currency)} spent today · ${today.daysLeftInMonth} days left · ${spent}/${budget} spent this month`,
     deviationText,
     savingsText,
     `streak ${gamification.streak} · ${gamification.levelName} (${gamification.totalXp} XP) · ${formatMoodTrend(ctx)}`,

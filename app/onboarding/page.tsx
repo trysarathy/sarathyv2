@@ -2,6 +2,18 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import LanguagePicker from '@/components/ui/LanguagePicker'
+import OnboardingCurrencyPicker from '@/components/ui/OnboardingCurrencyPicker'
+import NotificationOptInPrompt from '@/components/notifications/NotificationOptInPrompt'
+import { subscribeToPush } from '@/lib/notifications/client'
+import {
+  DEFAULT_PREFERRED_LANGUAGE,
+  type PreferredLanguageCode,
+} from '@/lib/languages'
+import {
+  DEFAULT_PRIMARY_CURRENCY,
+  type LifeCurrency,
+} from '@/lib/home/display-currency'
 
 const STEPS = 5
 
@@ -11,9 +23,16 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showNotifyPrompt, setShowNotifyPrompt] = useState(false)
+  const [notifyBusy, setNotifyBusy] = useState(false)
+  const [finishedUserId, setFinishedUserId] = useState<string | null>(null)
 
   // Step 1
   const [name, setName] = useState('')
+  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguageCode>(
+    DEFAULT_PREFERRED_LANGUAGE
+  )
+  const [primaryCurrency, setPrimaryCurrency] = useState<LifeCurrency>(DEFAULT_PRIMARY_CURRENCY)
   // Step 2
   const [vibe, setVibe] = useState<string>('')
   // Step 3
@@ -41,11 +60,13 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user found')
 
-      // Update profile
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           name,
+          preferred_language: preferredLanguage,
+          language_preference: preferredLanguage,
+          primary_currency: primaryCurrency,
           companion_vibe: vibe,
           responsible_for: responsibleFor,
           money_fear: moneyFear,
@@ -55,12 +76,42 @@ export default function OnboardingPage() {
           planning_amount: planningAmount,
           onboarding_complete: true,
           total_xp: 300,
+          // Reset so the opt-in sheet can show (including test re-runs)
+          notifications_prompt_seen: false,
+          notifications_enabled: false,
         })
         .eq('id', user.id)
 
-      if (profileError) throw profileError
+      if (profileError) {
+        // If notify columns aren't migrated yet, still complete onboarding
+        const missingNotifyCol =
+          /notifications_prompt_seen|notifications_enabled|notification_time/i.test(
+            profileError.message
+          )
+        if (!missingNotifyCol) throw profileError
 
-      // Create starter goals based on answers
+        console.warn('[onboarding] notify columns missing, retrying without them:', profileError.message)
+        const { error: retryError } = await supabase
+          .from('profiles')
+          .update({
+            name,
+            preferred_language: preferredLanguage,
+            language_preference: preferredLanguage,
+            primary_currency: primaryCurrency,
+            companion_vibe: vibe,
+            responsible_for: responsibleFor,
+            money_fear: moneyFear,
+            income_timing: incomeTiming,
+            total_money: parseFloat(totalMoney) || null,
+            money_type: moneyType,
+            planning_amount: planningAmount,
+            onboarding_complete: true,
+            total_xp: 300,
+          })
+          .eq('id', user.id)
+        if (retryError) throw retryError
+      }
+
       const goals = [
         { name: 'Survive this month', emoji: '🗓️', target_amount: planningAmount, user_id: user.id },
       ]
@@ -71,16 +122,58 @@ export default function OnboardingPage() {
 
       await supabase.from('goals').insert(goals)
 
-      router.replace('/home')
+      setFinishedUserId(user.id)
+      setSaving(false)
+      // Bottom sheet BEFORE redirecting to /home
+      setShowNotifyPrompt(true)
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
       setSaving(false)
     }
   }
 
+  const finishNotifyAndGoHome = async (enable: boolean) => {
+    if (!finishedUserId) {
+      router.replace('/home')
+      return
+    }
+    setNotifyBusy(true)
+    try {
+      if (enable) {
+        const result = await subscribeToPush()
+        if (!result.ok) {
+          console.warn('[notifications]', result.error)
+        }
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            notifications_enabled: result.ok,
+            notifications_prompt_seen: true,
+            notification_time: '20:00:00',
+          })
+          .eq('id', finishedUserId)
+        if (updateError) console.error('[notifications] profile update:', updateError.message)
+      } else {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            notifications_enabled: false,
+            notifications_prompt_seen: true,
+          })
+          .eq('id', finishedUserId)
+        if (updateError) console.error('[notifications] profile update:', updateError.message)
+      }
+    } catch (err) {
+      console.error('[notifications] opt-in failed:', err)
+    } finally {
+      setNotifyBusy(false)
+      setShowNotifyPrompt(false)
+      router.replace('/home')
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-cream flex flex-col px-6 pt-12 pb-8">
-      {/* Progress */}
       <div className="flex gap-2 mb-8">
         {Array.from({ length: STEPS }).map((_, i) => (
           <div
@@ -91,13 +184,12 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {/* Step 1 — Name */}
       {step === 1 && (
-        <div className="flex flex-col flex-1 page-enter">
+        <div className="flex flex-col flex-1 page-enter overflow-y-auto">
           <h2 className="font-fraunces text-2xl font-semibold text-ink mb-2">
             What should I call you?
           </h2>
-          <p className="text-ink-3 text-sm mb-8">This is just between us.</p>
+          <p className="text-ink-3 text-sm mb-6">This is just between us.</p>
           <input
             type="text"
             value={name}
@@ -107,10 +199,35 @@ export default function OnboardingPage() {
             autoFocus
           />
           {name && (
-            <p className="mt-4 text-ink-3 text-sm animate-pulse">
+            <p className="mt-4 text-ink-3 text-sm">
               Nice to meet you, {name} 🌸
             </p>
           )}
+
+          <div className="mt-8 mb-2">
+            <p className="font-medium text-ink text-sm mb-1">What language do you prefer?</p>
+            <p className="text-ink-3 text-xs mb-4">
+              Sarathy will always reply in this language. Default is English.
+            </p>
+            <LanguagePicker
+              value={preferredLanguage}
+              onChange={setPreferredLanguage}
+            />
+          </div>
+
+          <div className="mt-8 mb-2">
+            <p className="font-medium text-ink text-sm mb-1">
+              What&apos;s your main currency in Singapore?
+            </p>
+            <p className="text-ink-3 text-xs mb-4">
+              Safe-to-spend and all home amounts use this. Default is SGD.
+            </p>
+            <OnboardingCurrencyPicker
+              value={primaryCurrency}
+              onChange={setPrimaryCurrency}
+            />
+          </div>
+
           <div className="mt-auto pt-8">
             <button
               className="btn-primary"
@@ -123,7 +240,6 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Step 2 — Companion vibe */}
       {step === 2 && (
         <div className="flex flex-col flex-1 page-enter">
           <h2 className="font-fraunces text-2xl font-semibold text-ink mb-2">
@@ -162,7 +278,6 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Step 3 — About you */}
       {step === 3 && (
         <div className="flex flex-col flex-1 page-enter overflow-y-auto">
           <h2 className="font-fraunces text-2xl font-semibold text-ink mb-2">
@@ -235,13 +350,12 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Step 4 — Money */}
       {step === 4 && (
         <div className="flex flex-col flex-1 page-enter">
           <h2 className="font-fraunces text-2xl font-semibold text-ink mb-2">
-            What's your monthly budget?
+            What&apos;s your monthly budget?
           </h2>
-          <p className="text-ink-3 text-sm mb-8">Don't worry — this is just for you, never shared.</p>
+          <p className="text-ink-3 text-sm mb-8">Don&apos;t worry — this is just for you, never shared.</p>
 
           <div className="mb-4">
             <input
@@ -309,7 +423,6 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Step 5 — Goals preview */}
       {step === 5 && (
         <div className="flex flex-col flex-1 page-enter">
           <h2 className="font-fraunces text-2xl font-semibold text-ink mb-2">
@@ -374,14 +487,23 @@ export default function OnboardingPage() {
           )}
 
           <div className="mt-auto flex gap-3">
-            <button className="btn-secondary" onClick={goPrev}>← Back</button>
-            <button className="btn-primary" onClick={handleFinish} disabled={saving}>
+            <button className="btn-secondary" onClick={goPrev} disabled={showNotifyPrompt}>← Back</button>
+            <button className="btn-primary" onClick={handleFinish} disabled={saving || showNotifyPrompt}>
               {saving ? (
                 <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : "I'm ready 🌸"}
             </button>
           </div>
         </div>
+      )}
+
+      {showNotifyPrompt && (
+        <NotificationOptInPrompt
+          vibe={vibe || 'calm_mentor'}
+          busy={notifyBusy}
+          onEnable={() => finishNotifyAndGoHome(true)}
+          onLater={() => finishNotifyAndGoHome(false)}
+        />
       )}
     </div>
   )

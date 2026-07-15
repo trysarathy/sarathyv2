@@ -6,6 +6,37 @@ export function todayInSingapore(date: Date = new Date()): string {
   return date.toLocaleDateString('en-CA', { timeZone: TZ })
 }
 
+/**
+ * Expense list / picker labels: "Today", "Yesterday", or "12 Jul".
+ * Expects a YYYY-MM-DD (or longer ISO) calendar date string.
+ */
+export function formatRelativeEntryDate(
+  dateStr: string,
+  today: string = todayInSingapore()
+): string {
+  const d = dateStr.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return dateStr
+  if (d === today) return 'Today'
+  if (d === addDaysToDateString(today, -1)) return 'Yesterday'
+  return new Date(`${d}T12:00:00+08:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: TZ,
+  })
+}
+
+/** Absolute display for log form: "14 Jul 2026". */
+export function formatAbsoluteEntryDate(dateStr: string): string {
+  const d = dateStr.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return dateStr
+  return new Date(`${d}T12:00:00+08:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: TZ,
+  })
+}
+
 export function dayOfWeekInSingapore(dateStr: string): number {
   const weekday = new Date(`${dateStr}T12:00:00+08:00`).toLocaleDateString('en-US', {
     timeZone: TZ,

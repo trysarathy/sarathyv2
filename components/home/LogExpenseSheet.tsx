@@ -2,18 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { todayInSingapore } from '@/lib/sarathy/sgt'
+import { formatRelativeEntryDate, todayInSingapore } from '@/lib/sarathy/sgt'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import { EXPENSE_CATEGORY_EMOJI, EXPENSE_CATEGORIES } from '@/lib/expense/categories'
 import { CURRENCIES } from '@/components/ui/CurrencySelector'
 import VoiceMicButton from '@/components/home/VoiceMicButton'
-import { useSpeechRecognition } from '@/lib/voice/speech-recognition'
+import ExpenseDatePicker from '@/components/home/ExpenseDatePicker'
+import {
+  getOpenInChromeHref,
+  isSpeechRecognitionSupported,
+  useSpeechRecognition,
+} from '@/lib/voice/speech-recognition'
 import { getAuthHeaders } from '@/lib/api-auth'
 import { Profile } from '@/types'
 import {
   friendlyExpenseSaveError,
   friendlyVoiceParseError,
+  friendlyVoicePermissionError,
 } from '@/lib/booth/friendly-errors'
+import { formatCurrency } from '@/lib/calculations'
 
 interface Props {
   profile: Profile
@@ -29,6 +36,12 @@ function xpFloatCoords(el: HTMLElement | null): { x: number; y: number } | undef
   return { x: rect.left + rect.width / 2, y: rect.top }
 }
 
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 const CATEGORIES = EXPENSE_CATEGORIES.map(value => ({
   emoji: EXPENSE_CATEGORY_EMOJI[value],
   label: value,
@@ -41,7 +54,7 @@ const MOODS = [
   { emoji: '😤', label: 'Stressed', value: 'stressed' },
 ]
 
-type VoicePhase = 'idle' | 'listening' | 'parsing'
+type VoicePhase = 'idle' | 'listening' | 'parsing' | 'confirm'
 
 export default function LogExpenseSheet({
   profile,
@@ -64,13 +77,18 @@ export default function LogExpenseSheet({
 
   const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle')
   const [voiceError, setVoiceError] = useState('')
+  const [voiceErrorIsChromeHint, setVoiceErrorIsChromeHint] = useState(false)
   const [prefillFlash, setPrefillFlash] = useState(false)
+  const [heardText, setHeardText] = useState('')
+  const [elapsedSec, setElapsedSec] = useState(0)
 
   const {
     supported: voiceSupported,
     isListening,
     transcript,
     interimTranscript,
+    error: recognitionError,
+    clearError,
     startListening,
     stopListening,
     abortListening,
@@ -87,12 +105,20 @@ export default function LogExpenseSheet({
 
   const liveTranscript = `${transcript}${interimTranscript}`.trim()
 
+  const showChromeFallback = useCallback((message?: string) => {
+    setVoiceErrorIsChromeHint(true)
+    setVoiceError(message || friendlyVoicePermissionError('unsupported'))
+    setVoicePhase('idle')
+  }, [])
+
   const parseTranscript = useCallback(
     async (text: string) => {
       if (!text.trim() || parsingRef.current) return
       parsingRef.current = true
       setVoicePhase('parsing')
       setVoiceError('')
+      setVoiceErrorIsChromeHint(false)
+      setHeardText(text.trim())
 
       try {
         const res = await fetch('/api/parse-voice-expense', {
@@ -111,10 +137,11 @@ export default function LogExpenseSheet({
         setAmount(String(data.amount))
         if (data.category) setCategory(data.category)
         if (data.description) setDescription(data.description)
+        setEntryDate(todayInSingapore())
 
         setPrefillFlash(true)
-        window.setTimeout(() => setPrefillFlash(false), 1200)
-        setVoicePhase('idle')
+        window.setTimeout(() => setPrefillFlash(false), 1400)
+        setVoicePhase('confirm')
       } catch {
         setVoiceError(friendlyVoiceParseError())
         setVoicePhase('idle')
@@ -125,23 +152,41 @@ export default function LogExpenseSheet({
     [profileCurrency]
   )
 
-  const handleMicToggle = useCallback(() => {
+  const beginListening = useCallback(async () => {
     setVoiceError('')
-    if (isListening) {
+    setVoiceErrorIsChromeHint(false)
+    clearError()
+
+    if (!voiceSupported) {
+      showChromeFallback()
+      return
+    }
+
+    setVoicePhase('listening')
+    const ok = await startListening()
+    if (!ok) {
+      setVoicePhase('idle')
+    }
+  }, [voiceSupported, startListening, clearError, showChromeFallback])
+
+  const handleMicToggle = useCallback(() => {
+    if (isListening || voicePhase === 'listening') {
       stopListening()
       return
     }
-    setVoicePhase('listening')
-    startListening()
-  }, [isListening, startListening, stopListening])
+    void beginListening()
+  }, [isListening, voicePhase, stopListening, beginListening])
 
   useEffect(() => {
-    if (startInListeningMode && voiceSupported && !autoStartedRef.current) {
-      autoStartedRef.current = true
-      setVoicePhase('listening')
-      startListening()
+    if (!startInListeningMode || autoStartedRef.current) return
+    autoStartedRef.current = true
+    // Client-only check after mount — avoids SSR "unsupported" false positive
+    if (isSpeechRecognitionSupported()) {
+      void beginListening()
+    } else {
+      showChromeFallback()
     }
-  }, [startInListeningMode, voiceSupported, startListening])
+  }, [startInListeningMode, beginListening, showChromeFallback])
 
   useEffect(() => {
     if (wasListeningRef.current && !isListening && voicePhase === 'listening') {
@@ -150,10 +195,35 @@ export default function LogExpenseSheet({
         void parseTranscript(text)
       } else {
         setVoicePhase('idle')
+        setVoiceError(friendlyVoiceParseError('no transcript'))
       }
     }
     wasListeningRef.current = isListening
   }, [isListening, voicePhase, getFullTranscript, parseTranscript])
+
+  useEffect(() => {
+    if (!recognitionError) return
+    if (recognitionError === 'unsupported') {
+      showChromeFallback()
+      return
+    }
+    setVoiceErrorIsChromeHint(false)
+    setVoiceError(friendlyVoicePermissionError(recognitionError))
+    setVoicePhase('idle')
+  }, [recognitionError, showChromeFallback])
+
+  useEffect(() => {
+    if (!isListening) {
+      setElapsedSec(0)
+      return
+    }
+    const started = Date.now()
+    setElapsedSec(0)
+    const id = window.setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - started) / 1000))
+    }, 250)
+    return () => window.clearInterval(id)
+  }, [isListening])
 
   useEffect(() => {
     return () => {
@@ -176,8 +246,8 @@ export default function LogExpenseSheet({
       const today = todayInSingapore()
       const expenseDate = entryDate && entryDate <= today ? entryDate : today
       let finalAmount = parseFloat(amount)
-      let originalAmount = finalAmount
-      let originalCurrency = currency
+      const originalAmount = finalAmount
+      const originalCurrency = currency
 
       if (currency !== profileCurrency) {
         try {
@@ -255,8 +325,13 @@ export default function LogExpenseSheet({
   }
 
   const showVoicePanel =
-    voiceSupported &&
-    (voicePhase === 'listening' || voicePhase === 'parsing' || Boolean(voiceError))
+    voicePhase === 'listening' ||
+    voicePhase === 'parsing' ||
+    voicePhase === 'confirm' ||
+    Boolean(voiceError)
+
+  const categoryEmoji =
+    EXPENSE_CATEGORY_EMOJI[category as keyof typeof EXPENSE_CATEGORY_EMOJI] || '📌'
 
   return (
     <>
@@ -269,14 +344,14 @@ export default function LogExpenseSheet({
               <h3 className="font-fraunces text-xl font-semibold text-ink-on-indigo">Log expense</h3>
             </div>
             <div className="flex items-center gap-2">
-              {voiceSupported && (
-                <VoiceMicButton
-                  size="sm"
-                  listening={isListening}
-                  onClick={handleMicToggle}
-                  ariaLabel={isListening ? 'Stop listening' : 'Log by voice'}
-                />
-              )}
+              <VoiceMicButton
+                size="sm"
+                listening={isListening || voicePhase === 'listening'}
+                onClick={handleMicToggle}
+                ariaLabel={
+                  isListening || voicePhase === 'listening' ? 'Stop listening' : 'Log by voice'
+                }
+              />
               <button type="button" onClick={onClose} className="text-ink-on-indigo/50 text-2xl leading-none">
                 ×
               </button>
@@ -300,7 +375,7 @@ export default function LogExpenseSheet({
               placeholder="0.00"
               className={`log-sheet-amount flex-1 ${prefillFlash ? 'voice-prefill-flash rounded-lg' : ''}`}
               inputMode="decimal"
-              autoFocus={!startInListeningMode}
+              autoFocus={!startInListeningMode && voicePhase !== 'confirm'}
             />
           </div>
 
@@ -331,14 +406,37 @@ export default function LogExpenseSheet({
           )}
         </div>
 
-        {voiceSupported && (showVoicePanel || voiceError) && (
+        <div className="mb-4">
+          <ExpenseDatePicker
+            value={entryDate}
+            onChange={setEntryDate}
+            max={todayInSingapore()}
+          />
+        </div>
+
+        <input
+          type="text"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="What was this for? (optional)"
+          className={`log-sheet-input mb-4 ${prefillFlash ? 'voice-prefill-flash' : ''}`}
+        />
+
+        {showVoicePanel && (
           <div className="log-sheet-voice-panel">
             {voicePhase === 'listening' && (
               <div className="flex flex-col items-center text-center gap-2 py-1">
-                <VoiceMicButton listening onClick={handleMicToggle} ariaLabel="Stop listening" />
-                <p className="log-sheet-voice-label">Listening…</p>
+                <VoiceMicButton
+                  listening
+                  onClick={handleMicToggle}
+                  ariaLabel="Stop listening"
+                />
+                <div className="voice-waveform" aria-hidden>
+                  <span /><span /><span /><span /><span />
+                </div>
+                <p className="log-sheet-voice-label">Listening… {formatElapsed(elapsedSec)}</p>
                 <p className="font-fraunces text-sm text-indigo min-h-[2.5rem] leading-relaxed px-2">
-                  {liveTranscript || 'Say something like “Grab twelve fifty”'}
+                  {liveTranscript || 'Say something like “Lunch at hawker, five dollars”'}
                 </p>
                 <p className="text-[11px] text-indigo-muted">Tap the mic when you&apos;re done</p>
               </div>
@@ -351,33 +449,52 @@ export default function LogExpenseSheet({
               </div>
             )}
 
+            {voicePhase === 'confirm' && (
+              <div className="voice-confirm-card">
+                <p className="log-sheet-voice-label mb-2">Confirm before saving</p>
+                {heardText && (
+                  <p className="text-[11px] text-indigo-muted mb-2 leading-relaxed">
+                    Heard: “{heardText}”
+                  </p>
+                )}
+                <p className="font-fraunces text-lg font-semibold text-indigo mb-1">
+                  {formatCurrency(parseFloat(amount) || 0, currency)} · {description || category}
+                </p>
+                <p className="text-xs text-indigo-muted mb-3">
+                  {categoryEmoji} {category} · {formatRelativeEntryDate(entryDate)}
+                </p>
+                <p className="text-[11px] text-indigo-muted mb-3">
+                  Edit any field below, then tap Log to save.
+                </p>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-coral"
+                  onClick={() => {
+                    setVoicePhase('idle')
+                    void beginListening()
+                  }}
+                >
+                  Re-record
+                </button>
+              </div>
+            )}
+
             {voiceError && voicePhase === 'idle' && (
-              <p className="text-sm text-danger text-center py-1">{voiceError}</p>
+              voiceErrorIsChromeHint ? (
+                <a
+                  href={getOpenInChromeHref()}
+                  className="voice-chrome-fallback"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {voiceError}
+                </a>
+              ) : (
+                <p className="text-sm text-danger text-center py-1">{voiceError}</p>
+              )
             )}
           </div>
         )}
-
-        <div className="mb-4">
-          <label htmlFor="expense-date" className="log-sheet-section-kicker">
-            Date
-          </label>
-          <input
-            id="expense-date"
-            type="date"
-            value={entryDate}
-            max={todayInSingapore()}
-            onChange={(e) => setEntryDate(e.target.value || todayInSingapore())}
-            className="log-sheet-input"
-          />
-        </div>
-
-        <input
-          type="text"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="What was this for? (optional)"
-          className={`log-sheet-input mb-4 ${prefillFlash ? 'voice-prefill-flash' : ''}`}
-        />
 
         <div className="mb-4">
           <p className="log-sheet-section-kicker">Category</p>
@@ -436,7 +553,9 @@ export default function LogExpenseSheet({
         >
           {saving
             ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            : `Log ${selectedCurrency.symbol}${amount || '0'} →`}
+            : voicePhase === 'confirm'
+              ? `Looks good — Log ${selectedCurrency.symbol}${amount || '0'} →`
+              : `Log ${selectedCurrency.symbol}${amount || '0'} →`}
         </button>
       </div>
     </>

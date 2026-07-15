@@ -1,5 +1,6 @@
 import { getGroqClient } from '@/lib/groq'
 import { createServiceSupabaseClient } from '@/lib/supabase-admin'
+import { preferredLanguagePromptRule } from '@/lib/languages'
 import { buildCompanionContext } from './context'
 import { formatContextForPrompt } from './format-context'
 import { todayInSingapore } from './sgt'
@@ -7,6 +8,7 @@ import type { CompanionContext } from './types'
 
 export function buildDailyBriefPrompt(ctx: CompanionContext): string {
   const contextBlock = formatContextForPrompt(ctx)
+  const languageRule = preferredLanguagePromptRule(ctx.user.preferredLanguage)
   const softenTone =
     ctx.mood.trend === 'worsening' || ctx.mood.trend === 'mixed'
       ? 'Their mood trend suggests stress — you may soften tone slightly, but do NOT name or reference their emotional state.'
@@ -30,7 +32,10 @@ export function buildDailyBriefPrompt(ctx: CompanionContext): string {
         : ''
 
   return `You are Sarathy — a warm financial companion for international students in Singapore.
-Write the user's morning home-screen brief in English only (no Hinglish/Singlish — this is not a chat reply).
+Write the user's morning home-screen brief (personal note).
+
+LANGUAGE: ${languageRule}
+Always respond in the user's preferred language. For Hindi use Devanagari script.
 
 Requirements:
 - Exactly 1 warm paragraph, max 3 sentences.

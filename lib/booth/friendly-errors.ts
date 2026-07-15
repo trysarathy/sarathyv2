@@ -33,6 +33,24 @@ export function friendlyVoiceParseError(raw?: string | null): string {
   return "Didn't catch that — try 'spent 8 dollars on lunch'."
 }
 
+export function friendlyVoicePermissionError(
+  code?: string | null
+): string {
+  if (code === 'not-allowed') {
+    return 'Microphone access is blocked. Allow mic permission in your browser settings, then try again.'
+  }
+  if (code === 'unsupported') {
+    return 'Voice logging works best in Chrome. Tap here to open in Chrome →'
+  }
+  if (code === 'network') {
+    return 'Speech service hiccup — check your connection and try again.'
+  }
+  if (code === 'start-failed') {
+    return "Couldn't start listening — try tapping the mic again."
+  }
+  return "Couldn't use the microphone — try again or log manually."
+}
+
 export function friendlySyncError(err: unknown): string {
   if (err && typeof err === 'object') {
     const e = err as { message?: string; details?: string; hint?: string }

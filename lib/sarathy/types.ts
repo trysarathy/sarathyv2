@@ -29,6 +29,7 @@ export interface CompanionContext {
     currentCountry: string | null
     moneyFear: string | null
     responsibleFor: string | null
+    preferredLanguage: string
   }
   today: {
     safeToSpend: number

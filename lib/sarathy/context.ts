@@ -9,6 +9,7 @@ import { detectRecentNotables } from './notables'
 import { analyzeRemittanceRhythm } from './remittance-rhythm'
 import { analyzeSpendingPatterns } from './spending-patterns'
 import { addDaysToDateString, todayInSingapore } from './sgt'
+import { normalizePreferredLanguage } from '@/lib/languages'
 import type {
   BudgetEntryRow,
   CompanionContext,
@@ -113,6 +114,9 @@ export async function buildCompanionContext(userId: string): Promise<CompanionCo
       currentCountry: profile.current_country,
       moneyFear: profile.money_fear,
       responsibleFor: profile.responsible_for,
+      preferredLanguage: normalizePreferredLanguage(
+        profile.preferred_language ?? profile.language_preference
+      ),
     },
     today: {
       safeToSpend: safeData.safeToSpend,

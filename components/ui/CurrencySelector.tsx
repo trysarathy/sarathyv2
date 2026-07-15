@@ -4,15 +4,16 @@ import { useState } from 'react'
 export const CURRENCIES = [
   { code: 'SGD', symbol: 'S$', flag: '🇸🇬', name: 'Singapore Dollar' },
   { code: 'INR', symbol: '₹', flag: '🇮🇳', name: 'Indian Rupee' },
+  { code: 'BRL', symbol: 'R$', flag: '🇧🇷', name: 'Brazilian Real' },
+  { code: 'CNY', symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
+  { code: 'VND', symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
+  { code: 'PHP', symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
   { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
   { code: 'GBP', symbol: '£', flag: '🇬🇧', name: 'British Pound' },
   { code: 'AUD', symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
-  { code: 'VND', symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
-  { code: 'CNY', symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
   { code: 'EUR', symbol: '€', flag: '🇪🇺', name: 'Euro' },
   { code: 'CAD', symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
   { code: 'MYR', symbol: 'RM', flag: '🇲🇾', name: 'Malaysian Ringgit' },
-  { code: 'PHP', symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
   { code: 'BDT', symbol: '৳', flag: '🇧🇩', name: 'Bangladeshi Taka' },
 ]
 

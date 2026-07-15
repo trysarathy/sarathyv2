@@ -137,11 +137,17 @@ export function groupEntriesByCategory(entries: BudgetEntry[]): PLCategory[] {
 }
 
 export function formatCurrency(amount: number, currency: string = 'SGD'): string {
-  if (currency === 'SGD') return `S$${amount.toFixed(0)}`
-  if (currency === 'INR') return `₹${amount.toFixed(0)}`
-  if (currency === 'USD') return `$${amount.toFixed(0)}`
-  if (currency === 'GBP') return `£${amount.toFixed(0)}`
-  return `${currency} ${amount.toFixed(0)}`
+  const n = Number.isFinite(amount) ? amount : 0
+  if (currency === 'SGD') return `S$${n.toFixed(0)}`
+  if (currency === 'INR') return `₹${n.toFixed(0)}`
+  if (currency === 'USD') return `$${n.toFixed(0)}`
+  if (currency === 'GBP') return `£${n.toFixed(0)}`
+  if (currency === 'BRL') return `R$${n.toFixed(0)}`
+  if (currency === 'CNY') return `¥${n.toFixed(0)}`
+  if (currency === 'VND') return `₫${n.toFixed(0)}`
+  if (currency === 'PHP') return `₱${n.toFixed(0)}`
+  if (currency === 'AUD') return `A$${n.toFixed(0)}`
+  return `${currency} ${n.toFixed(0)}`
 }
 
 export function getCategoryEmoji(category: string): string {

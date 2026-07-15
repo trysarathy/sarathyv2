@@ -19,7 +19,18 @@ function formatPlain(amount: number, currency: string): string {
   if (currency === 'INR') {
     return amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })
   }
-  if (currency === 'SGD' || currency === 'USD' || currency === 'GBP' || currency === 'AUD') {
+  if (currency === 'VND') {
+    return amount.toLocaleString('vi-VN', { maximumFractionDigits: 0 })
+  }
+  if (
+    currency === 'SGD' ||
+    currency === 'USD' ||
+    currency === 'GBP' ||
+    currency === 'AUD' ||
+    currency === 'BRL' ||
+    currency === 'CNY' ||
+    currency === 'PHP'
+  ) {
     return amount.toLocaleString('en-SG', { maximumFractionDigits: 0 })
   }
   return amount.toLocaleString(undefined, { maximumFractionDigits: 0 })

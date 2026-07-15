@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
+import ServiceWorkerRegister from '@/components/notifications/ServiceWorkerRegister'
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -38,6 +39,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&display=swap" rel="stylesheet" />
       </head>
       <body className={`${jakarta.variable} font-jakarta bg-cream antialiased`}>
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>

@@ -33,10 +33,15 @@ Return ONLY valid JSON with no markdown:
 {"amount": number or null, "category": "one of the categories", "description": "short merchant or purpose string"}
 
 Rules:
-- amount must be a positive number if clearly stated (handle "twelve fifty" as 12.50, "twenty bucks" as 20)
+- amount must be a positive number if clearly stated (handle "twelve fifty" as 12.50, "twenty bucks" as 20, "five dollars" / "5 dollars" as 5)
 - if amount is unclear, use null
-- description should be concise (e.g. "Grab ride", "Koufu lunch")
-- category must match the list exactly`,
+- description should be the purpose/merchant without the amount (e.g. "Lunch at hawker", "Grab ride", "Koufu lunch")
+- category must match the list exactly
+- Food for meals, hawker, coffee, groceries; Transport for Grab/taxi/MRT; etc.
+
+Examples:
+- "Lunch at hawker, five dollars" → {"amount":5,"category":"Food","description":"Lunch at hawker"}
+- "Grab twelve fifty" → {"amount":12.5,"category":"Transport","description":"Grab"}`,
         },
       ],
     })

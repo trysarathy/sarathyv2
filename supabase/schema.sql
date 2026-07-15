@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   primary_currency text NOT NULL DEFAULT 'SGD',
   secondary_currency text,
   language_preference text,
+  preferred_language text NOT NULL DEFAULT 'en',
   planning_amount numeric,
   total_money numeric,
   money_type text,
@@ -56,11 +57,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   goal_saved_amount numeric NOT NULL DEFAULT 0 CHECK (goal_saved_amount >= 0),
   goal_progress_through_month text,
   goal_started_at date,
+  notifications_enabled boolean NOT NULL DEFAULT false,
+  notification_time time NOT NULL DEFAULT '20:00:00',
+  notifications_prompt_seen boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
 COMMENT ON TABLE public.profiles IS 'User profile and onboarding preferences; id matches auth.users.id';
 COMMENT ON COLUMN public.profiles.secondary_currency IS 'Used by future/page.tsx for INR home-cost comparisons';
+COMMENT ON COLUMN public.profiles.preferred_language IS 'Companion reply language: en | pt-BR | hi | zh | vi | tl';
+COMMENT ON COLUMN public.profiles.notifications_enabled IS 'Daily expense reminder via Web Push';
+COMMENT ON COLUMN public.profiles.notification_time IS 'Preferred reminder time (interpreted as Asia/Singapore)';
+COMMENT ON COLUMN public.profiles.notifications_prompt_seen IS 'Post-onboarding notification opt-in prompt dismissed';
 COMMENT ON COLUMN public.profiles.monthly_savings_goal IS 'Monthly amount reserved before safe-to-spend; 0 = disabled';
 COMMENT ON COLUMN public.profiles.savings_goal_prompt_dismissed IS 'Home savings prompt dismissed; also true when user sets a goal';
 COMMENT ON COLUMN public.profiles.goal_name IS 'Optional name for monthly_savings_goal (e.g. Bali fund)';
@@ -542,3 +550,25 @@ CREATE TABLE IF NOT EXISTS public.user_feedback (
 CREATE INDEX IF NOT EXISTS user_feedback_user_id_idx ON public.user_feedback (user_id);
 CREATE INDEX IF NOT EXISTS user_feedback_created_at_idx ON public.user_feedback (created_at DESC);
 ALTER TABLE public.user_feedback ENABLE ROW LEVEL SECURITY;
+
+-- Web Push daily reminders (2026-07-15)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notifications_enabled boolean NOT NULL DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notification_time time NOT NULL DEFAULT '20:00:00';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notifications_prompt_seen boolean NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  endpoint text NOT NULL,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  user_agent text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (endpoint)
+);
+
+CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx
+  ON public.push_subscriptions (user_id);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;

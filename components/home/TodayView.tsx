@@ -5,9 +5,8 @@
 // Focused: hero, actions, mood, accounts, this-month card
 // ───────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState, type ReactNode, type Ref } from 'react'
+import { type ReactNode, type Ref } from 'react'
 import { formatCurrency } from '@/lib/calculations'
-import { isSpeechRecognitionSupported } from '@/lib/voice/speech-recognition'
 
 // ── Color tokens ───────────────────────────────────────────────────────────
 export const TODAY_COLORS = {
@@ -77,12 +76,6 @@ export default function TodayView({
   monthCardSlot,
   children,
 }: TodayViewProps) {
-  const [voiceSupported, setVoiceSupported] = useState(false)
-
-  useEffect(() => {
-    setVoiceSupported(isSpeechRecognitionSupported())
-  }, [])
-
   return (
     <div
       style={{
@@ -295,27 +288,25 @@ export default function TodayView({
           >
             + Log expense
           </button>
-          {voiceSupported && (
-            <button
-              type="button"
-              onClick={onVoiceLog}
-              aria-label="Voice log expense"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: 'rgba(212,168,83,0.12)',
-                border: '1.5px solid rgba(212,168,83,0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              🎙️
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onVoiceLog}
+            aria-label="Voice log expense"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              background: 'rgba(212,168,83,0.12)',
+              border: '1.5px solid rgba(212,168,83,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            🎙️
+          </button>
           <button
             type="button"
             onClick={onAskSarathy}

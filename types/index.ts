@@ -7,6 +7,8 @@ export interface Profile {
   primary_currency: string
   secondary_currency?: string | null
   language_preference: string | null
+  /** Companion AI reply language: en | pt-BR | hi | zh | vi | tl */
+  preferred_language?: string | null
   planning_amount: number | null
   total_money: number | null
   money_type: string | null
@@ -30,6 +32,12 @@ export interface Profile {
   goal_saved_amount?: number
   goal_progress_through_month?: string | null
   goal_started_at?: string | null
+  /** Daily expense reminder via Web Push */
+  notifications_enabled?: boolean
+  /** Preferred reminder time (HH:MM:SS), interpreted as Asia/Singapore */
+  notification_time?: string | null
+  /** Post-onboarding notification opt-in prompt dismissed */
+  notifications_prompt_seen?: boolean
   created_at: string
 }
 
