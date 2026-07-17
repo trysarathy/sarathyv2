@@ -77,25 +77,47 @@ function CirclePageInner() {
     if (!user) { router.replace('/login'); return }
     setUserId(user.id)
 
-    const [circleRes, momentsRes, membersRes, profileRes] = await Promise.all([
+    type MemberRow = {
+      user_id: string
+      display_name: string | null
+      role?: string | null
+      profiles: { name: string | null } | { name: string | null }[] | null
+    }
+
+    let membersData: MemberRow[] = []
+    let membersError: { message: string } | null = null
+
+    {
+      const first = await supabase
+        .from('circle_members')
+        .select('user_id, display_name, role, profiles(name)')
+        .eq('circle_id', circleId)
+      if (first.error && /role/i.test(first.error.message)) {
+        const retry = await supabase
+          .from('circle_members')
+          .select('user_id, display_name, profiles(name)')
+          .eq('circle_id', circleId)
+        membersData = (retry.data || []) as MemberRow[]
+        membersError = retry.error
+      } else {
+        membersData = (first.data || []) as MemberRow[]
+        membersError = first.error
+      }
+    }
+
+    const [circleRes, momentsRes, profileRes] = await Promise.all([
       supabase.from('circles').select('id, name, invite_code').eq('id', circleId).single(),
       supabase.from('circle_moments').select('*').eq('circle_id', circleId).order('created_at', { ascending: true }),
-      supabase
-        .from('circle_members')
-        .select('user_id, display_name, profiles(name)')
-        .eq('circle_id', circleId),
       supabase.from('profiles').select('name, daily_login_streak, primary_currency').eq('id', user.id).single(),
     ])
+
+    console.log('circle_members query result:', membersData, membersError)
 
     if (circleRes.data) setCircle(circleRes.data)
     const loadedMoments = (momentsRes.data || []) as CircleMoment[]
     setMoments(loadedMoments)
 
-    const mappedMembers: CircleMemberWithProfile[] = (membersRes.data || []).map((row: {
-      user_id: string
-      display_name: string | null
-      profiles: { name: string | null } | { name: string | null }[] | null
-    }) => {
+    const mappedMembers: CircleMemberWithProfile[] = membersData.map((row) => {
       const p = row.profiles
       const profileName = Array.isArray(p) ? p[0]?.name ?? null : p?.name ?? null
       return {
@@ -128,6 +150,24 @@ function CirclePageInner() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [moments])
+
+  // After join (or return to this circle), refetch members so the count updates
+  useEffect(() => {
+    if (searchParams.get('joined') === '1') {
+      void load().then(() => {
+        router.replace(`/circles/${circleId}`, { scroll: false })
+      })
+    }
+  }, [searchParams, circleId, load, router])
+
+  // Refetch when tab becomes visible again (e.g. second user just joined)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [load])
 
   // Prefill split sheet when arriving from Log Expense → Split with circle
   useEffect(() => {
@@ -400,7 +440,13 @@ function CirclePageInner() {
         <button
           type="button"
           onClick={() => setShowSplit(true)}
-          className="circles-btn-indigo-outline !py-3.5 !text-sm"
+          disabled={members.length < 2}
+          title={
+            members.length < 2
+              ? 'Invite someone with the code above — splits need 2+ members'
+              : undefined
+          }
+          className="circles-btn-indigo-outline !py-3.5 !text-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Split an expense 🍽️
         </button>

@@ -102,25 +102,40 @@ function CirclesPageInner() {
     if (!name.trim()) return
     setSaving(true); setError('')
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+
       const { data: circle, error: e } = await supabase
         .from('circles')
-        .insert({ name: name.trim(), created_by: userId })
+        .insert({ name: name.trim(), created_by: user.id })
         .select()
         .single()
       if (e) throw e
 
-      await supabase.from('circle_members').insert({
+      const { error: memberError } = await supabase.from('circle_members').insert({
         circle_id: circle.id,
-        user_id: userId,
+        user_id: user.id,
+        role: 'admin',
         display_name: 'You',
       })
+      console.log('Create circle_members insert:', memberError)
+      if (memberError && /role/i.test(memberError.message)) {
+        const retry = await supabase.from('circle_members').insert({
+          circle_id: circle.id,
+          user_id: user.id,
+          display_name: 'You',
+        })
+        if (retry.error) throw retry.error
+      } else if (memberError) {
+        throw memberError
+      }
 
       setName(''); setShowCreate(false)
       if (pendingSplit) {
         openCircleWithSplit(circle.id, pendingSplit)
         return
       }
-      void load()
+      router.push(`/circles/${circle.id}`)
     } catch (err: any) {
       setError(err.message || 'Could not create circle')
     } finally { setSaving(false) }
@@ -130,31 +145,68 @@ function CirclesPageInner() {
     if (!inviteCode.trim()) return
     setSaving(true); setError('')
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in')
+
       const normalizedCode = inviteCode.trim().toLowerCase()
       console.log('Searching for invite code:', normalizedCode)
 
-      const { data, error } = await supabase
+      const { data: circle, error } = await supabase
         .from('circles')
         .select('*')
         .eq('invite_code', normalizedCode)
         .single()
 
-      console.log('Circle query result:', data, error)
+      console.log('Circle query result:', circle, error)
 
-      if (error || !data) throw new Error('Circle not found — check the invite code')
+      if (error || !circle) throw new Error('Circle not found — check the invite code')
 
-      const { error: memberError } = await supabase
+      const memberPayload: {
+        circle_id: string
+        user_id: string
+        role: string
+        display_name?: string
+      } = {
+        circle_id: circle.id,
+        user_id: user.id,
+        role: 'member',
+      }
+
+      let { data: memberRow, error: memberError } = await supabase
         .from('circle_members')
-        .insert({ circle_id: data.id, user_id: userId })
-      if (memberError && !memberError.message.includes('duplicate')) throw memberError
+        .insert(memberPayload)
+        .select()
+        .single()
+
+      // If role column isn't migrated yet, retry without it
+      if (memberError && /role/i.test(memberError.message)) {
+        const retry = await supabase
+          .from('circle_members')
+          .insert({ circle_id: circle.id, user_id: user.id })
+          .select()
+          .single()
+        memberRow = retry.data
+        memberError = retry.error
+      }
+
+      console.log('circle_members insert result:', memberRow, memberError)
+
+      if (memberError) {
+        // Already a member — still enter the circle
+        if (!/duplicate|unique/i.test(memberError.message)) {
+          throw new Error(memberError.message || 'Could not join circle')
+        }
+      }
 
       setInviteCode(''); setShowJoin(false)
       if (pendingSplit) {
-        openCircleWithSplit(data.id, pendingSplit)
+        openCircleWithSplit(circle.id, pendingSplit)
         return
       }
-      void load()
+      // Land on detail page so member list refreshes
+      router.push(`/circles/${circle.id}?joined=1`)
     } catch (err: any) {
+      console.error('Join circle failed:', err)
       setError(err.message || 'Could not join circle')
     } finally { setSaving(false) }
   }

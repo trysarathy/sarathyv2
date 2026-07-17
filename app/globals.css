@@ -1377,32 +1377,43 @@
 
   .log-sheet-subcats {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 8px;
     margin-top: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .log-sheet-subcats::-webkit-scrollbar {
+    display: none;
   }
 
   .log-sheet-subcat {
+    flex-shrink: 0;
     border-radius: 999px;
-    padding: 5px 10px;
+    padding: 6px 12px;
     font-size: 11px;
     font-weight: 600;
     line-height: 1.2;
-    border: 1px solid transparent;
+    border: 1.5px solid transparent;
     cursor: pointer;
+    white-space: nowrap;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
 
   .log-sheet-subcat-selected {
-    background: #FEF3DC;
-    color: #8A5E10;
+    background: #D4A853;
+    color: #FFFFFF;
     border-color: #D4A853;
   }
 
   .log-sheet-subcat-unselected {
     background: #FFFAF5;
     color: #7A6E5A;
-    border-color: rgba(30, 27, 75, 0.1);
+    border-color: rgba(30, 27, 75, 0.12);
   }
 
   .log-sheet-mood {

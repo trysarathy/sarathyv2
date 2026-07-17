@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS public.circle_members (
   circle_id uuid NOT NULL REFERENCES public.circles (id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
   display_name text,
+  role text NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin')),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (circle_id, user_id)
 );

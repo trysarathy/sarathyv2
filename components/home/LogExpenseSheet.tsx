@@ -92,6 +92,7 @@ export default function LogExpenseSheet({
     amount: number
     description: string
     category: string
+    subcategory?: string
   } | null>(null)
 
   const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle')
@@ -356,6 +357,7 @@ export default function LogExpenseSheet({
         amount: finalAmount,
         description: description || subcategory || category,
         category,
+        subcategory,
       })
     } catch (err) {
       console.error(err)
@@ -414,6 +416,9 @@ export default function LogExpenseSheet({
             </p>
             <p className="text-sm text-ink-on-indigo/70">
               {successEmoji} {loggedSuccess.description}
+              {loggedSuccess.subcategory
+                ? ` · ${loggedSuccess.category} · ${loggedSuccess.subcategory}`
+                : ` · ${loggedSuccess.category}`}
             </p>
           </div>
 
@@ -626,7 +631,12 @@ export default function LogExpenseSheet({
               </button>
             ))}
           </div>
-          <div className="log-sheet-subcats" role="group" aria-label={`${category} subcategory`}>
+          <div
+            key={category}
+            className="log-sheet-subcats"
+            role="group"
+            aria-label={`${category} subcategory`}
+          >
             {getSubcategories(category).map((sub) => (
               <button
                 key={sub}
