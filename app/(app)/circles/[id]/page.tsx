@@ -1,10 +1,15 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/calculations'
 import { claimCircleSplit } from '@/lib/circles/client'
 import { isExpenseSplitContent, shareForUser } from '@/lib/circles/split-expense'
+import {
+  clearPendingCircleSplit,
+  parsePendingSplitFromSearch,
+  type PendingCircleSplit,
+} from '@/lib/circles/pending-split'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import SplitExpenseSheet from '@/components/circles/SplitExpenseSheet'
 import TabBar from '@/components/ui/TabBar'
@@ -28,11 +33,27 @@ function memberLabel(m: CircleMemberWithProfile): string {
 }
 
 export default function CirclePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="circles-page flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-indigo border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <CirclePageInner />
+    </Suspense>
+  )
+}
+
+function CirclePageInner() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const circleId = params.id as string
   const supabase = createClient()
   const bottomRef = useRef<HTMLDivElement>(null)
+  const openedSplitRef = useRef(false)
 
   const [circle, setCircle] = useState<{ id: string; name: string; invite_code: string } | null>(null)
   const [moments, setMoments] = useState<CircleMoment[]>([])
@@ -42,6 +63,7 @@ export default function CirclePage() {
   const [profile, setProfile] = useState<{ name: string | null; daily_login_streak: number; primary_currency: string } | null>(null)
   const [showShare, setShowShare] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
+  const [splitPrefill, setSplitPrefill] = useState<PendingCircleSplit | null>(null)
   const [sharing, setSharing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [claimedMomentIds, setClaimedMomentIds] = useState<Set<string>>(new Set())
@@ -106,6 +128,20 @@ export default function CirclePage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [moments])
+
+  // Prefill split sheet when arriving from Log Expense → Split with circle
+  useEffect(() => {
+    if (loading || openedSplitRef.current) return
+    const open = searchParams.get('openSplit') === '1'
+    const draft = parsePendingSplitFromSearch(searchParams)
+    if (!open && !draft) return
+    if (!draft) return
+    openedSplitRef.current = true
+    setSplitPrefill(draft)
+    setShowSplit(true)
+    clearPendingCircleSplit()
+    router.replace(`/circles/${circleId}`, { scroll: false })
+  }, [loading, searchParams, circleId, router])
 
   const memberName = (id: string) => {
     const m = members.find(x => x.user_id === id)
@@ -375,11 +411,18 @@ export default function CirclePage() {
 
       {showSplit && (
         <SplitExpenseSheet
+          key={splitPrefill ? `prefill-${splitPrefill.amount}-${splitPrefill.description}` : 'manual'}
           circleId={circleId}
           members={members}
           currentUserId={userId}
           currency={currency}
-          onClose={() => setShowSplit(false)}
+          initialAmount={splitPrefill ? String(splitPrefill.amount) : ''}
+          initialDescription={splitPrefill?.description || ''}
+          initialCategory={splitPrefill?.category || 'Social'}
+          onClose={() => {
+            setShowSplit(false)
+            setSplitPrefill(null)
+          }}
           onComplete={load}
         />
       )}

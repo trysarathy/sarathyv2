@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS public.budget_entries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
   category text NOT NULL,
+  subcategory text,
   amount numeric NOT NULL CHECK (amount >= 0),
   description text,
   entry_date date NOT NULL DEFAULT CURRENT_DATE,
@@ -391,6 +392,9 @@ AS $$
 BEGIN
   IF NEW.invite_code IS NULL OR NEW.invite_code = '' THEN
     NEW.invite_code := lower(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+  ELSE
+    -- Always store lowercase so join lookups match consistently
+    NEW.invite_code := lower(trim(NEW.invite_code));
   END IF;
   RETURN NEW;
 END;
@@ -572,3 +576,8 @@ CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx
   ON public.push_subscriptions (user_id);
 
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Expense subcategories (2026-07-16)
+ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS subcategory text;
+COMMENT ON COLUMN public.budget_entries.subcategory IS
+  'Optional detail under category (e.g. Food → Hawker)';

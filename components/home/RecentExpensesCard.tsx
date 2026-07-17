@@ -107,7 +107,9 @@ export default function RecentExpensesCard({ entries, currency, onSeeAll }: Prop
                         fontWeight: 500,
                       }}
                     >
-                      {formatRelativeEntryDate(entry.entry_date)}
+                      {[entry.subcategory, formatRelativeEntryDate(entry.entry_date)]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                   </div>
                 </div>

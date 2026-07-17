@@ -14,6 +14,10 @@ interface Props {
   currency: string
   onClose: () => void
   onComplete: () => void
+  /** Prefill from a just-logged personal expense */
+  initialAmount?: string
+  initialDescription?: string
+  initialCategory?: string
 }
 
 function memberLabel(m: CircleMemberWithProfile): string {
@@ -27,10 +31,13 @@ export default function SplitExpenseSheet({
   currency,
   onClose,
   onComplete,
+  initialAmount = '',
+  initialDescription = '',
+  initialCategory = 'Social',
 }: Props) {
-  const [amount, setAmount] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('Social')
+  const [amount, setAmount] = useState(initialAmount)
+  const [description, setDescription] = useState(initialDescription)
+  const [category, setCategory] = useState(initialCategory)
   const [selectedIds, setSelectedIds] = useState<string[]>(() => members.map(m => m.user_id))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)

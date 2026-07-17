@@ -1,10 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { formatRelativeEntryDate, todayInSingapore } from '@/lib/sarathy/sgt'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
-import { EXPENSE_CATEGORY_EMOJI, EXPENSE_CATEGORIES } from '@/lib/expense/categories'
+import {
+  EXPENSE_CATEGORY_EMOJI,
+  EXPENSE_CATEGORIES,
+  getDefaultSubcategory,
+  getSubcategories,
+  inferSubcategory,
+  normalizeExpenseCategory,
+} from '@/lib/expense/categories'
 import { CURRENCIES } from '@/components/ui/CurrencySelector'
 import VoiceMicButton from '@/components/home/VoiceMicButton'
 import ExpenseDatePicker from '@/components/home/ExpenseDatePicker'
@@ -21,6 +29,10 @@ import {
   friendlyVoicePermissionError,
 } from '@/lib/booth/friendly-errors'
 import { formatCurrency } from '@/lib/calculations'
+import {
+  pendingSplitQuery,
+  savePendingCircleSplit,
+} from '@/lib/circles/pending-split'
 
 interface Props {
   profile: Profile
@@ -62,18 +74,25 @@ export default function LogExpenseSheet({
   onLogged,
   startInListeningMode = false,
 }: Props) {
+  const router = useRouter()
   const supabase = createClient()
   const profileCurrency = getProfileDisplayCurrency(profile)
 
   const [amount, setAmount] = useState('')
   const [entryDate, setEntryDate] = useState(todayInSingapore())
   const [category, setCategory] = useState('Food')
+  const [subcategory, setSubcategory] = useState(() => getDefaultSubcategory('Food'))
   const [description, setDescription] = useState('')
   const [mood, setMood] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [currency, setCurrency] = useState(profileCurrency)
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false)
+  const [loggedSuccess, setLoggedSuccess] = useState<{
+    amount: number
+    description: string
+    category: string
+  } | null>(null)
 
   const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle')
   const [voiceError, setVoiceError] = useState('')
@@ -135,7 +154,13 @@ export default function LogExpenseSheet({
         }
 
         setAmount(String(data.amount))
-        if (data.category) setCategory(data.category)
+        const nextCategory = data.category
+          ? normalizeExpenseCategory(data.category)
+          : category
+        setCategory(nextCategory)
+        setSubcategory(
+          inferSubcategory(nextCategory, data.description || data.subcategory || '')
+        )
         if (data.description) setDescription(data.description)
         setEntryDate(todayInSingapore())
 
@@ -276,16 +301,28 @@ export default function LogExpenseSheet({
         }
       }
 
-      const { error: insertError } = await supabase.from('budget_entries').insert({
+      const row: Record<string, unknown> = {
         user_id: user.id,
         category,
+        subcategory,
         amount: finalAmount,
         original_amount: originalAmount,
         original_currency: originalCurrency,
-        description: description || category,
+        description: description || subcategory || category,
         entry_date: expenseDate,
         logged_via: 'manual',
-      })
+      }
+
+      let { error: insertError } = await supabase.from('budget_entries').insert(row)
+
+      // If subcategory column isn't migrated yet, still save the expense
+      if (
+        insertError &&
+        /subcategory/i.test(insertError.message)
+      ) {
+        delete row.subcategory
+        ;({ error: insertError } = await supabase.from('budget_entries').insert(row))
+      }
 
       if (insertError) {
         setSaveError(friendlyExpenseSaveError(insertError.message))
@@ -315,13 +352,29 @@ export default function LogExpenseSheet({
       }
 
       await onLogged(xpAward, xpFloatCoords(saveButtonRef.current))
-      onClose()
+      setLoggedSuccess({
+        amount: finalAmount,
+        description: description || subcategory || category,
+        category,
+      })
     } catch (err) {
       console.error(err)
       setSaveError('Something went wrong saving this expense. Please try again.')
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSplitWithCircle = () => {
+    if (!loggedSuccess) return
+    const draft = {
+      amount: loggedSuccess.amount,
+      description: loggedSuccess.description,
+      category: loggedSuccess.category,
+    }
+    savePendingCircleSplit(draft)
+    onClose()
+    router.push(`/circles?${pendingSplitQuery(draft)}`)
   }
 
   const showVoicePanel =
@@ -332,6 +385,60 @@ export default function LogExpenseSheet({
 
   const categoryEmoji =
     EXPENSE_CATEGORY_EMOJI[category as keyof typeof EXPENSE_CATEGORY_EMOJI] || '📌'
+
+  if (loggedSuccess) {
+    const successEmoji =
+      EXPENSE_CATEGORY_EMOJI[loggedSuccess.category as keyof typeof EXPENSE_CATEGORY_EMOJI] || '✅'
+    return (
+      <>
+        <div className="circles-overlay" onClick={onClose} />
+        <div className="log-sheet circles-enter-1">
+          <div className="log-sheet-indigo-top">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="circles-kicker text-indigo-muted mb-1">Logged</p>
+                <h3 className="font-fraunces text-xl font-semibold text-ink-on-indigo">
+                  Expense saved ✨
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-ink-on-indigo/50 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <p className="font-fraunces text-3xl font-semibold text-ink-on-indigo mb-1">
+              {formatCurrency(loggedSuccess.amount, profileCurrency)}
+            </p>
+            <p className="text-sm text-ink-on-indigo/70">
+              {successEmoji} {loggedSuccess.description}
+            </p>
+          </div>
+
+          <p className="text-sm text-ink-3 leading-relaxed mb-4">
+            Want to split this with flatmates or friends? Send it to a circle — zero awkwardness.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleSplitWithCircle}
+            className="log-sheet-save mb-3"
+          >
+            Split with circle 👥
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-3 text-sm font-medium text-ink-3"
+          >
+            Done
+          </button>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
@@ -461,7 +568,8 @@ export default function LogExpenseSheet({
                   {formatCurrency(parseFloat(amount) || 0, currency)} · {description || category}
                 </p>
                 <p className="text-xs text-indigo-muted mb-3">
-                  {categoryEmoji} {category} · {formatRelativeEntryDate(entryDate)}
+                  {categoryEmoji} {category}
+                  {subcategory ? ` · ${subcategory}` : ''} · {formatRelativeEntryDate(entryDate)}
                 </p>
                 <p className="text-[11px] text-indigo-muted mb-3">
                   Edit any field below, then tap Log to save.
@@ -503,7 +611,10 @@ export default function LogExpenseSheet({
               <button
                 key={cat.value}
                 type="button"
-                onClick={() => setCategory(cat.value)}
+                onClick={() => {
+                  setCategory(cat.value)
+                  setSubcategory(getDefaultSubcategory(cat.value))
+                }}
                 className={`log-sheet-category ${
                   category === cat.value
                     ? 'log-sheet-category-selected'
@@ -512,6 +623,22 @@ export default function LogExpenseSheet({
               >
                 <span className="text-lg">{cat.emoji}</span>
                 <span className="text-[10px] font-medium">{cat.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="log-sheet-subcats" role="group" aria-label={`${category} subcategory`}>
+            {getSubcategories(category).map((sub) => (
+              <button
+                key={sub}
+                type="button"
+                onClick={() => setSubcategory(sub)}
+                className={`log-sheet-subcat ${
+                  subcategory === sub
+                    ? 'log-sheet-subcat-selected'
+                    : 'log-sheet-subcat-unselected'
+                }`}
+              >
+                {sub}
               </button>
             ))}
           </div>

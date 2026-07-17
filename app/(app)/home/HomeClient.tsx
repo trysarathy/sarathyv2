@@ -22,6 +22,7 @@ import AccountsSummaryLine from '@/components/home/AccountsSummaryLine'
 import TodayView from '@/components/home/TodayView'
 import ThisMonthCard from '@/components/home/ThisMonthCard'
 import RecentExpensesCard from '@/components/home/RecentExpensesCard'
+import CreateFirstCircleCard from '@/components/home/CreateFirstCircleCard'
 import MonthSummarySheet from '@/components/home/MonthSummarySheet'
 import HomeWalkthrough from '@/components/home/HomeWalkthrough'
 import ExpenseDatePicker from '@/components/home/ExpenseDatePicker'
@@ -62,6 +63,7 @@ export default function HomeClient() {
   const [showNotifyPrompt, setShowNotifyPrompt] = useState(false)
   const [notifyBusy, setNotifyBusy] = useState(false)
   const [notifyError, setNotifyError] = useState('')
+  const [hasCircles, setHasCircles] = useState<boolean | null>(null)
   const deepLinkHandled = useRef(false)
   const [xpFloat, setXpFloat] = useState<{ show: boolean; x: number; y: number; xp: number }>({
     show: false,
@@ -75,11 +77,14 @@ export default function HomeClient() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/login'); return }
 
-    const [profileRes, entriesRes, fixedRes] = await Promise.all([
+    const [profileRes, entriesRes, fixedRes, circlesRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('budget_entries').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
       supabase.from('fixed_spending').select('*').eq('user_id', user.id).eq('is_active', true),
+      supabase.from('circle_members').select('circle_id').eq('user_id', user.id).limit(1),
     ])
+
+    setHasCircles(Boolean(circlesRes.data && circlesRes.data.length > 0))
 
     if (entriesRes.error) {
       console.error('Failed to load budget entries:', entriesRes.error.message)
@@ -371,6 +376,11 @@ export default function HomeClient() {
             existingEntries={entries}
             onSynced={loadData}
           />
+        }
+        afterAccountsSlot={
+          hasCircles === false ? (
+            <CreateFirstCircleCard onCreate={() => router.push('/circles?create=1')} />
+          ) : null
         }
         monthCardSlot={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

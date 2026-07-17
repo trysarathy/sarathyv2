@@ -54,6 +54,8 @@ export interface TodayViewProps {
   onSetupBudget?: () => void
   moodSlot?: ReactNode
   accountsSlot?: ReactNode
+  /** Shown between Connected Accounts and This Month (e.g. create-first-circle). */
+  afterAccountsSlot?: ReactNode
   monthCardSlot?: ReactNode
   children?: ReactNode
 }
@@ -73,6 +75,7 @@ export default function TodayView({
   onSetupBudget,
   moodSlot,
   accountsSlot,
+  afterAccountsSlot,
   monthCardSlot,
   children,
 }: TodayViewProps) {
@@ -329,6 +332,10 @@ export default function TodayView({
         {moodSlot}
 
         {accountsSlot && <div style={{ margin: '4px 16px 0' }}>{accountsSlot}</div>}
+
+        {afterAccountsSlot && (
+          <div style={{ margin: '12px 16px 0' }}>{afterAccountsSlot}</div>
+        )}
 
         {monthCardSlot && (
           <div ref={monthCardRef} style={{ margin: '12px 16px 0' }}>

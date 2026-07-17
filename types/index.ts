@@ -45,6 +45,8 @@ export interface BudgetEntry {
   id: string
   user_id: string
   category: string
+  /** Student-specific detail under category (e.g. Food → Hawker). */
+  subcategory?: string | null
   amount: number
   description: string | null
   entry_date: string
