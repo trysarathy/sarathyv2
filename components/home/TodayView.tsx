@@ -7,6 +7,7 @@
 
 import { type ReactNode, type Ref } from 'react'
 import { formatCurrency } from '@/lib/calculations'
+import InstallAppBanner from '@/components/pwa/InstallAppBanner'
 
 // ── Color tokens ───────────────────────────────────────────────────────────
 export const TODAY_COLORS = {
@@ -345,6 +346,8 @@ export default function TodayView({
       </div>
 
       {children}
+
+      <InstallAppBanner />
     </div>
   )
 }

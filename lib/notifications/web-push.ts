@@ -43,8 +43,8 @@ export async function sendPushToSubscription(
         title: payload.title,
         body: payload.body,
         url: payload.url || LOG_EXPENSE_DEEP_LINK,
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-192x192.png',
       })
     )
     return { ok: true }

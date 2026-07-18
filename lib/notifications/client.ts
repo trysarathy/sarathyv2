@@ -112,8 +112,8 @@ export function showLocalNotificationPreview(title: string, body: string): boole
     void navigator.serviceWorker.ready.then((reg) => {
       void reg.showNotification(title, {
         body,
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-192x192.png',
         data: { url: '/home?log=expense' },
       })
     })

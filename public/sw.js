@@ -1,11 +1,56 @@
-/* Sarathy PWA service worker — Web Push + notification click → Log Expense */
+/* Sarathy PWA service worker — offline shell + Web Push */
+
+const CACHE_NAME = 'sarathy-v1'
+const STATIC_ASSETS = [
+  '/',
+  '/home',
+  '/manifest.json',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+]
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting())
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(
+        STATIC_ASSETS.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn('[sw] cache skip', url, err)
+          })
+        )
+      )
+    )
+  )
+  self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
+  )
+  self.clients.claim()
+})
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return
+
+  const url = new URL(event.request.url)
+  // Don't cache API / auth / opaque cross-origin blindly in network-first path for non-http
+  if (url.origin !== self.location.origin) return
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.ok && response.type === 'basic') {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+        }
+        return response
+      })
+      .catch(() => caches.match(event.request))
+  )
 })
 
 self.addEventListener('push', (event) => {
@@ -13,8 +58,8 @@ self.addEventListener('push', (event) => {
     title: 'Sarathy',
     body: "Don't forget to log today's expenses.",
     url: '/home?log=expense',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
   }
 
   try {
@@ -60,7 +105,6 @@ self.addEventListener('notificationclick', (event) => {
             await client.navigate(absolute)
             return
           }
-          // Same-origin client without navigate — postMessage fallback
           client.postMessage({ type: 'SARATHY_OPEN_LOG_EXPENSE' })
           return
         }
