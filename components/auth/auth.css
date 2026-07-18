@@ -461,6 +461,18 @@
   font-size: 0.85rem;
   padding: 0.75rem 1rem;
   border-radius: 12px;
+  line-height: 1.45;
+}
+
+.auth-error-link {
+  color: #8a5e10;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-error-link:hover {
+  color: #1c0f3f;
 }
 
 .auth-cta {

@@ -264,6 +264,17 @@ export default function LandingPage() {
           />
         ))}
       </div>
+
+      <footer className="landing-footer">
+        <p className="landing-footer-brand">Sarathy ✦</p>
+        <nav className="landing-footer-links" aria-label="Footer">
+          <Link href="/contact">Contact</Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/privacy">Privacy</Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/terms">Terms</Link>
+        </nav>
+      </footer>
     </>
   )
 }

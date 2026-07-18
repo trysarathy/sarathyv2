@@ -48,6 +48,46 @@ function EyeIcon({ open }: { open: boolean }) {
   )
 }
 
+type LoginError =
+  | { kind: 'no_account' }
+  | { kind: 'bad_password' }
+  | { kind: 'other'; message: string }
+
+function classifyLoginError(err: unknown): LoginError {
+  const authErr = err as { message?: string; code?: string; status?: number }
+  const message = (authErr.message || '').trim()
+  const code = (authErr.code || '').toLowerCase()
+  const lower = message.toLowerCase()
+
+  // Explicit "no such user" signals (when Supabase / config exposes them)
+  if (
+    code === 'user_not_found' ||
+    lower.includes('user not found') ||
+    lower.includes('no user found') ||
+    lower.includes('email not found') ||
+    lower.includes('user does not exist')
+  ) {
+    return { kind: 'no_account' }
+  }
+
+  // Wrong password / unknown email — Supabase usually returns the same credentials error
+  if (
+    code === 'invalid_credentials' ||
+    lower.includes('invalid login credentials') ||
+    lower.includes('invalid credentials') ||
+    lower.includes('invalid email or password') ||
+    lower.includes('wrong password') ||
+    lower.includes('incorrect password') ||
+    lower.includes('email and password')
+  ) {
+    // Prefer password copy on /login; users without an account still see Sign up below
+    return { kind: 'bad_password' }
+  }
+
+  if (!message) return { kind: 'bad_password' }
+  return { kind: 'other', message }
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -56,18 +96,43 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<LoginError | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError('')
+    setError(null)
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-      if (authError) throw authError
+      const trimmedEmail = email.trim()
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      })
+      if (authError) {
+        const classified = classifyLoginError(authError)
+        if (classified.kind === 'bad_password') {
+          // Supabase uses one credentials error for both cases — resolve via server lookup
+          try {
+            const res = await fetch('/api/auth/email-exists', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: trimmedEmail }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (data.exists === false) {
+              setError({ kind: 'no_account' })
+              return
+            }
+          } catch {
+            /* fall through to password copy */
+          }
+        }
+        setError(classified)
+        return
+      }
       router.replace('/home')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(classifyLoginError(err))
     } finally {
       setLoading(false)
     }
@@ -75,7 +140,7 @@ export default function LoginPage() {
 
   const handleGoogle = async () => {
     setGoogleLoading(true)
-    setError('')
+    setError(null)
     try {
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -85,7 +150,10 @@ export default function LoginPage() {
       })
       if (authError) throw authError
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed')
+      setError({
+        kind: 'other',
+        message: err instanceof Error ? err.message : 'Google sign-in failed',
+      })
       setGoogleLoading(false)
     }
   }
@@ -152,7 +220,27 @@ export default function LoginPage() {
           Forgot your password?
         </Link>
 
-        {error && <div className="auth-error">{error}</div>}
+        {error?.kind === 'no_account' && (
+          <div className="auth-error" role="alert">
+            No account found with this email.{' '}
+            <Link href="/signup" className="auth-error-link">
+              Did you mean to sign up? →
+            </Link>
+          </div>
+        )}
+        {error?.kind === 'bad_password' && (
+          <div className="auth-error" role="alert">
+            Incorrect password.{' '}
+            <Link href="/forgot-password" className="auth-error-link">
+              Try again or reset it →
+            </Link>
+          </div>
+        )}
+        {error?.kind === 'other' && (
+          <div className="auth-error" role="alert">
+            {error.message}
+          </div>
+        )}
 
         <button type="submit" className="auth-cta" disabled={loading || googleLoading}>
           {loading ? <span className="auth-spinner" /> : 'Welcome back →'}

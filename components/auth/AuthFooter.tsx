@@ -5,6 +5,8 @@ export default function AuthFooter() {
     <footer className="auth-footer">
       <p className="auth-footer-brand">Sarathy ✦ · Your money companion</p>
       <nav className="auth-footer-links" aria-label="Legal">
+        <Link href="/contact">Contact</Link>
+        <span aria-hidden="true">·</span>
         <Link href="/privacy">Privacy Policy</Link>
         <span aria-hidden="true">·</span>
         <Link href="/terms">Terms of Service</Link>
