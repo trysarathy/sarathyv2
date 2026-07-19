@@ -20,6 +20,12 @@ export function isPushSupported(): boolean {
   )
 }
 
+/** False when VAPID public key is missing — hide opt-in prompt until configured. */
+export function isPushConfigured(): boolean {
+  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  return Boolean(key && key.trim())
+}
+
 export async function registerSarathyServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!isPushSupported()) return null
   try {

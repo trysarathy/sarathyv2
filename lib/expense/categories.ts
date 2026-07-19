@@ -37,7 +37,17 @@ export const EXPENSE_SUBCATEGORIES: Record<ExpenseCategory, readonly string[]> =
   Education: ['Tuition', 'Books', 'Courses', 'School Fees'],
   Family: ['Send Home', 'Gifts', 'Family Support'],
   Entertainment: ['Movies', 'Games', 'Streaming', 'Sports'],
-  Other: ['Miscellaneous', 'Work', 'Insurance'],
+  Other: [
+    'Miscellaneous',
+    'Work',
+    'Insurance',
+    'Personal Care',
+    'Transport',
+    'Medical',
+    'Gifts',
+    'Subscriptions',
+    'Other',
+  ],
 } as const
 
 export function getDefaultSubcategory(category: string): string {
@@ -61,9 +71,16 @@ export function normalizeExpenseSubcategory(
 ): string {
   const cat = normalizeExpenseCategory(category)
   const options = EXPENSE_SUBCATEGORIES[cat]
-  if (!subcategory) return options[0]
-  const match = options.find(s => s.toLowerCase() === subcategory.trim().toLowerCase())
-  return match ?? options[0]
+  const trimmed = subcategory?.trim()
+  if (!trimmed) return options[0]
+  const match = options.find(s => s.toLowerCase() === trimmed.toLowerCase())
+  // Allow free-text custom subcategories
+  return match ?? trimmed
+}
+
+export function isPresetSubcategory(category: string, subcategory: string): boolean {
+  const options = getSubcategories(category)
+  return options.some(s => s.toLowerCase() === subcategory.trim().toLowerCase())
 }
 
 /** Best-effort subcategory from free text (voice / receipt). */
@@ -137,6 +154,12 @@ export function inferSubcategory(
     Other: [
       [/insur/, 'Insurance'],
       [/work|salary|freelance/, 'Work'],
+      [/personal\s*care|haircut|salon|spa|skincare/, 'Personal Care'],
+      [/transport|grab|mrt|taxi|bus/, 'Transport'],
+      [/medical|clinic|doctor|hospital|pharma/, 'Medical'],
+      [/gift|present/, 'Gifts'],
+      [/subscri|netflix|spotify|membership/, 'Subscriptions'],
+      [/misc/, 'Miscellaneous'],
     ],
   }
 

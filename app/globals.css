@@ -1416,6 +1416,53 @@
     border-color: rgba(30, 27, 75, 0.12);
   }
 
+  .log-sheet-subcat-custom.log-sheet-subcat-unselected {
+    border-style: dashed;
+    color: #1E1B4B;
+  }
+
+  .log-sheet-custom-sub {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+  }
+
+  .log-sheet-custom-sub-input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(30, 27, 75, 0.14);
+    background: #fff;
+    color: #1E1B4B;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+  }
+
+  .log-sheet-custom-sub-input:focus {
+    border-color: #D4A853;
+    box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.18);
+  }
+
+  .log-sheet-custom-sub-save {
+    flex-shrink: 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: none;
+    background: #1E1B4B;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .log-sheet-custom-sub-save:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
   .log-sheet-mood {
     flex: 1;
     display: flex;

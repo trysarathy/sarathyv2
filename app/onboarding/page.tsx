@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import LanguagePicker from '@/components/ui/LanguagePicker'
 import OnboardingCurrencyPicker from '@/components/ui/OnboardingCurrencyPicker'
 import NotificationOptInPrompt from '@/components/notifications/NotificationOptInPrompt'
-import { subscribeToPush } from '@/lib/notifications/client'
+import { isPushConfigured, subscribeToPush } from '@/lib/notifications/client'
 import {
   DEFAULT_PREFERRED_LANGUAGE,
   type PreferredLanguageCode,
@@ -61,6 +61,9 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user found')
 
+      // Skip notification opt-in entirely when VAPID keys aren't configured
+      const pushReady = isPushConfigured()
+
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -77,8 +80,8 @@ export default function OnboardingPage() {
           planning_amount: planningAmount,
           onboarding_complete: true,
           total_xp: 300,
-          // Reset so the opt-in sheet can show (including test re-runs)
-          notifications_prompt_seen: false,
+          // Only offer the prompt when push is configured; otherwise mark seen
+          notifications_prompt_seen: !pushReady,
           notifications_enabled: false,
         })
         .eq('id', user.id)
@@ -125,8 +128,12 @@ export default function OnboardingPage() {
 
       setFinishedUserId(user.id)
       setSaving(false)
-      // Bottom sheet BEFORE redirecting to /home
-      setShowNotifyPrompt(true)
+      if (pushReady) {
+        // Bottom sheet BEFORE redirecting to /home
+        setShowNotifyPrompt(true)
+      } else {
+        router.replace('/home')
+      }
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
       setSaving(false)

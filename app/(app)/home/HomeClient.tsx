@@ -30,7 +30,7 @@ import NotificationOptInPrompt from '@/components/notifications/NotificationOptI
 import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
 import { friendlyExpenseSaveError, friendlyHomeLoadError } from '@/lib/booth/friendly-errors'
 import { isHomeWalkthroughDone } from '@/lib/booth/walkthrough-storage'
-import { subscribeToPush } from '@/lib/notifications/client'
+import { isPushConfigured, subscribeToPush } from '@/lib/notifications/client'
 
 export default function HomeClient() {
   const router = useRouter()
@@ -164,13 +164,32 @@ export default function HomeClient() {
   }, [])
 
   // Fallback: show opt-in on home if they somehow skipped it (prompt_seen still false)
+  // Skip entirely when VAPID keys aren't configured — mark prompt seen so it never errors
   useEffect(() => {
     if (loading || !profile || showWalkthrough || showNotifyPrompt) return
-    if (profile.notifications_prompt_seen === false) {
-      const t = window.setTimeout(() => setShowNotifyPrompt(true), 600)
-      return () => window.clearTimeout(t)
+    if (profile.notifications_prompt_seen !== false) return
+
+    if (!isPushConfigured()) {
+      void supabase
+        .from('profiles')
+        .update({
+          notifications_prompt_seen: true,
+          notifications_enabled: false,
+        })
+        .eq('id', profile.id)
+        .then(() => {
+          setProfile((prev) =>
+            prev
+              ? { ...prev, notifications_prompt_seen: true, notifications_enabled: false }
+              : prev
+          )
+        })
+      return
     }
-  }, [loading, profile, showWalkthrough, showNotifyPrompt])
+
+    const t = window.setTimeout(() => setShowNotifyPrompt(true), 600)
+    return () => window.clearTimeout(t)
+  }, [loading, profile, showWalkthrough, showNotifyPrompt, supabase])
 
   const dismissNotifyPrompt = async (enabled: boolean) => {
     if (!profile) return

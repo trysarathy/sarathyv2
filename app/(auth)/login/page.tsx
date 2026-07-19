@@ -142,10 +142,40 @@ export default function LoginPage() {
     setGoogleLoading(true)
     setError(null)
     try {
+      const isPwa =
+        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone) ||
+        window.matchMedia('(display-mode: standalone)').matches
+
+      if (isPwa) {
+        // Open Google OAuth in the system browser (avoids in-app WebView blocks)
+        const { data, error: authError } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: 'https://sarathyv2.vercel.app/auth/callback?next=/home',
+            skipBrowserRedirect: true,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            },
+          },
+        })
+        if (authError) throw authError
+        if (data?.url) {
+          window.open(data.url, '_blank', 'noopener,noreferrer')
+        }
+        setGoogleLoading(false)
+        return
+      }
+
+      // Regular browser — normal full-page redirect
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=/home`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       })
       if (authError) throw authError

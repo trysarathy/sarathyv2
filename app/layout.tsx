@@ -52,6 +52,10 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#1C0F3F" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <meta
+          name="google-signin-client_id"
+          content="393700575574-88o0rb6k6gp4d527q29r7gdr1qbtghd5.apps.googleusercontent.com"
+        />
 
         {/* iOS specific */}
         <meta name="apple-mobile-web-app-capable" content="yes" />

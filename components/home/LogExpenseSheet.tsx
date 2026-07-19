@@ -11,6 +11,7 @@ import {
   getDefaultSubcategory,
   getSubcategories,
   inferSubcategory,
+  isPresetSubcategory,
   normalizeExpenseCategory,
 } from '@/lib/expense/categories'
 import { CURRENCIES } from '@/components/ui/CurrencySelector'
@@ -82,6 +83,9 @@ export default function LogExpenseSheet({
   const [entryDate, setEntryDate] = useState(todayInSingapore())
   const [category, setCategory] = useState('Food')
   const [subcategory, setSubcategory] = useState(() => getDefaultSubcategory('Food'))
+  const [showCustomSub, setShowCustomSub] = useState(false)
+  const [customSubDraft, setCustomSubDraft] = useState('')
+  const customSubInputRef = useRef<HTMLInputElement>(null)
   const [description, setDescription] = useState('')
   const [mood, setMood] = useState('')
   const [saving, setSaving] = useState(false)
@@ -619,6 +623,8 @@ export default function LogExpenseSheet({
                 onClick={() => {
                   setCategory(cat.value)
                   setSubcategory(getDefaultSubcategory(cat.value))
+                  setShowCustomSub(false)
+                  setCustomSubDraft('')
                 }}
                 className={`log-sheet-category ${
                   category === cat.value
@@ -641,9 +647,13 @@ export default function LogExpenseSheet({
               <button
                 key={sub}
                 type="button"
-                onClick={() => setSubcategory(sub)}
+                onClick={() => {
+                  setSubcategory(sub)
+                  setShowCustomSub(false)
+                  setCustomSubDraft('')
+                }}
                 className={`log-sheet-subcat ${
-                  subcategory === sub
+                  !showCustomSub && subcategory === sub
                     ? 'log-sheet-subcat-selected'
                     : 'log-sheet-subcat-unselected'
                 }`}
@@ -651,7 +661,66 @@ export default function LogExpenseSheet({
                 {sub}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setShowCustomSub(true)
+                setCustomSubDraft(
+                  subcategory && !isPresetSubcategory(category, subcategory) ? subcategory : ''
+                )
+                window.setTimeout(() => customSubInputRef.current?.focus(), 50)
+              }}
+              className={`log-sheet-subcat log-sheet-subcat-custom ${
+                showCustomSub || (subcategory && !isPresetSubcategory(category, subcategory))
+                  ? 'log-sheet-subcat-selected'
+                  : 'log-sheet-subcat-unselected'
+              }`}
+            >
+              {subcategory && !isPresetSubcategory(category, subcategory) && !showCustomSub
+                ? subcategory
+                : 'Add your own →'}
+            </button>
           </div>
+          {showCustomSub && (
+            <div className="log-sheet-custom-sub">
+              <input
+                ref={customSubInputRef}
+                type="text"
+                value={customSubDraft}
+                onChange={(e) => setCustomSubDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const next = customSubDraft.trim()
+                    if (next) {
+                      setSubcategory(next)
+                      setShowCustomSub(false)
+                    }
+                  }
+                  if (e.key === 'Escape') {
+                    setShowCustomSub(false)
+                    setCustomSubDraft('')
+                  }
+                }}
+                placeholder="Type a subcategory…"
+                className="log-sheet-custom-sub-input"
+                maxLength={40}
+              />
+              <button
+                type="button"
+                className="log-sheet-custom-sub-save"
+                disabled={!customSubDraft.trim()}
+                onClick={() => {
+                  const next = customSubDraft.trim()
+                  if (!next) return
+                  setSubcategory(next)
+                  setShowCustomSub(false)
+                }}
+              >
+                Save
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mb-5">
