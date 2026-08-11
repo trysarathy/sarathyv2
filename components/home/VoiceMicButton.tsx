@@ -3,7 +3,7 @@
 interface Props {
   onClick: () => void
   listening?: boolean
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
   className?: string
   ariaLabel?: string
 }
@@ -35,8 +35,8 @@ export default function VoiceMicButton({
   className = '',
   ariaLabel = 'Log expense by voice',
 }: Props) {
-  const dim = size === 'sm' ? 'w-9 h-9' : 'w-12 h-12'
-  const icon = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'
+  const dim = size === 'lg' ? 'w-16 h-16' : size === 'sm' ? 'w-9 h-9' : 'w-12 h-12'
+  const icon = size === 'lg' ? 'w-7 h-7' : size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'
 
   return (
     <button
@@ -45,7 +45,7 @@ export default function VoiceMicButton({
       aria-label={ariaLabel}
       className={`${dim} shrink-0 rounded-full border-2 flex items-center justify-center transition-transform active:scale-95 ${
         listening
-          ? 'border-coral bg-coral/10 text-coral voice-mic-pulse'
+          ? 'border-coral bg-coral text-white voice-mic-pulse'
           : 'border-coral text-coral bg-transparent'
       } ${className}`}
     >

@@ -13,9 +13,12 @@ import { attachDreamProgress, finalizeDreamMonths } from '@/lib/dream-goal'
 import { Profile, BudgetEntry, FixedSpending, SafeToSpendData, PLCategory } from '@/types'
 import { todayInSingapore, formatRelativeEntryDate } from '@/lib/sarathy/sgt'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
+import { sumSpentOnDate } from '@/lib/nudge/daily-budget'
 import TabBar from '@/components/ui/TabBar'
 import MoodCheckIn from '@/components/home/MoodCheckIn'
 import LogExpenseSheet from '@/components/home/LogExpenseSheet'
+import QuickLogChips from '@/components/home/QuickLogChips'
+import QuickLogSheet from '@/components/home/QuickLogSheet'
 import TrustLayerModal from '@/components/home/TrustLayerModal'
 import ConnectedAccountsStrip from '@/components/home/ConnectedAccountsStrip'
 import AccountsSummaryLine from '@/components/home/AccountsSummaryLine'
@@ -28,6 +31,7 @@ import HomeWalkthrough from '@/components/home/HomeWalkthrough'
 import ExpenseDatePicker from '@/components/home/ExpenseDatePicker'
 import NotificationOptInPrompt from '@/components/notifications/NotificationOptInPrompt'
 import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
+import { buildQuickLogChips, type QuickLogChip } from '@/lib/expense/quick-log-chips'
 import { friendlyExpenseSaveError, friendlyHomeLoadError } from '@/lib/booth/friendly-errors'
 import { isHomeWalkthroughDone } from '@/lib/booth/walkthrough-storage'
 import { isPushConfigured, subscribeToPush } from '@/lib/notifications/client'
@@ -44,6 +48,7 @@ export default function HomeClient() {
   const [categories, setCategories] = useState<PLCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [logMode, setLogMode] = useState<'manual' | 'voice' | null>(null)
+  const [quickChip, setQuickChip] = useState<QuickLogChip | null>(null)
   const heroAnchorRef = useRef<HTMLDivElement>(null)
   const actionsTourRef = useRef<HTMLDivElement>(null)
   const monthCardRef = useRef<HTMLDivElement>(null)
@@ -358,6 +363,8 @@ export default function HomeClient() {
   }
 
   const currency = getProfileDisplayCurrency(profile)
+  const quickChips = buildQuickLogChips(entries)
+  const todaySpent = sumSpentOnDate(entries, todayInSingapore())
 
   return (
     <>
@@ -388,6 +395,14 @@ export default function HomeClient() {
             block: 'center',
           })
         }}
+        quickLogSlot={
+          <QuickLogChips
+            chips={quickChips}
+            currency={currency}
+            onSelect={(chip) => setQuickChip(chip)}
+            onCustom={() => setLogMode('manual')}
+          />
+        }
         moodSlot={<MoodCheckIn userId={profile.id} variant="inline" />}
         accountsSlot={
           <ConnectedAccountsStrip
@@ -550,6 +565,17 @@ export default function HomeClient() {
             onClose={() => setLogMode(null)}
             onLogged={handleExpenseLogged}
             startInListeningMode={logMode === 'voice'}
+            todaySpent={todaySpent}
+          />
+        )}
+
+        {quickChip && (
+          <QuickLogSheet
+            profile={profile}
+            chip={quickChip}
+            onClose={() => setQuickChip(null)}
+            onLogged={handleExpenseLogged}
+            todaySpent={todaySpent}
           />
         )}
 

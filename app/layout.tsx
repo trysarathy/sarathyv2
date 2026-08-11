@@ -72,11 +72,18 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+  // Capture beforeinstallprompt early — it often fires before React mounts
+  window.__sarathyDeferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    window.__sarathyDeferredInstallPrompt = e;
+  });
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
       navigator.serviceWorker
         .register('/sw.js')
-        .then(function(reg) {
+        .then(function() {
           console.log('SW registered');
         })
         .catch(function(err) {

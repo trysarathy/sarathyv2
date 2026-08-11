@@ -13,6 +13,7 @@ export const LIFE_CURRENCIES = [
   'PHP',
   'USD',
   'GBP',
+  'BDT',
 ] as const
 
 export type LifeCurrency = (typeof LIFE_CURRENCIES)[number]
@@ -31,6 +32,7 @@ export const LIFE_CURRENCY_OPTIONS: Array<{
   { code: 'PHP', flag: '🇵🇭', label: 'PHP — Philippine Peso', symbol: '₱' },
   { code: 'USD', flag: '🇺🇸', label: 'USD — US Dollar', symbol: '$' },
   { code: 'GBP', flag: '🇬🇧', label: 'GBP — British Pound', symbol: '£' },
+  { code: 'BDT', flag: '🇧🇩', label: 'BDT — Bangladeshi Taka', symbol: '৳' },
 ]
 
 export const DEFAULT_PRIMARY_CURRENCY: LifeCurrency = 'SGD'

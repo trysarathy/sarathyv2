@@ -1,6 +1,7 @@
 'use client'
 
 import { formatCurrency, getCategoryEmoji } from '@/lib/calculations'
+import { formatMoneyAmount, currencySymbol } from '@/lib/currency/convert'
 import { formatRelativeEntryDate } from '@/lib/sarathy/sgt'
 import type { BudgetEntry } from '@/types'
 
@@ -20,7 +21,27 @@ function formatAmount(amount: number, currency: string): string {
   if (currency === 'PHP') return `₱${n.toFixed(2)}`
   if (currency === 'USD') return `$${n.toFixed(2)}`
   if (currency === 'GBP') return `£${n.toFixed(2)}`
+  if (currency === 'BDT') return `৳${n.toFixed(0)}`
   return formatCurrency(amount, currency)
+}
+
+/** e.g. ৳200 BDT (≈ S$2.60) when logged in a foreign currency. */
+function formatEntryAmount(entry: BudgetEntry, primaryCurrency: string): string {
+  const originalCode = entry.original_currency?.trim().toUpperCase()
+  const originalAmount = entry.original_amount
+  const hasForeignOriginal =
+    originalCode &&
+    originalAmount != null &&
+    Number.isFinite(originalAmount) &&
+    originalCode !== primaryCurrency
+
+  if (hasForeignOriginal) {
+    const originalLabel = `${formatMoneyAmount(originalAmount, originalCode)} ${originalCode}`
+    const approx = formatMoneyAmount(entry.amount, primaryCurrency, primaryCurrency === 'BDT' ? 0 : 2)
+    return `${originalLabel} (≈ ${approx})`
+  }
+
+  return formatAmount(entry.amount, primaryCurrency)
 }
 
 export default function RecentExpensesCard({ entries, currency, onSeeAll }: Props) {
@@ -68,71 +89,83 @@ export default function RecentExpensesCard({ entries, currency, onSeeAll }: Prop
       ) : (
         <>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {recent.map((entry, index) => (
-              <div
-                key={entry.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  padding: '10px 0',
-                  borderBottom: index < recent.length - 1 ? '1px solid #F0E8DC' : 'none',
-                }}
-              >
-                <div style={{ display: 'flex', gap: 10, minWidth: 0, flex: 1 }}>
-                  <span style={{ fontSize: 18, lineHeight: 1.2, flexShrink: 0 }} aria-hidden>
-                    {getCategoryEmoji(entry.category)}
-                  </span>
-                  <div style={{ minWidth: 0 }}>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: '#1C0F3F',
-                        lineHeight: 1.3,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {entry.description?.trim() || entry.category}
-                    </p>
-                    <p
-                      style={{
-                        margin: '3px 0 0',
-                        fontSize: 12,
-                        color: '#A09080',
-                        fontWeight: 500,
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '0 8px',
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      <span>
-                        {entry.category}
-                        {entry.subcategory ? ` · ${entry.subcategory}` : ''}
-                      </span>
-                      <span>{formatRelativeEntryDate(entry.entry_date)}</span>
-                    </p>
-                  </div>
-                </div>
-                <p
+            {recent.map((entry, index) => {
+              const amountLabel = formatEntryAmount(entry, currency)
+              const isDual = amountLabel.includes('≈')
+              return (
+                <div
+                  key={entry.id}
                   style={{
-                    margin: 0,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#1C0F3F',
-                    flexShrink: 0,
-                    fontVariantNumeric: 'tabular-nums',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    padding: '10px 0',
+                    borderBottom: index < recent.length - 1 ? '1px solid #F0E8DC' : 'none',
                   }}
                 >
-                  {formatAmount(entry.amount, currency)}
-                </p>
-              </div>
-            ))}
+                  <div style={{ display: 'flex', gap: 10, minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: 18, lineHeight: 1.2, flexShrink: 0 }} aria-hidden>
+                      {getCategoryEmoji(entry.category)}
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: '#1C0F3F',
+                          lineHeight: 1.3,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {entry.description?.trim() || entry.category}
+                      </p>
+                      <p
+                        style={{
+                          margin: '3px 0 0',
+                          fontSize: 12,
+                          color: '#A09080',
+                          fontWeight: 500,
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '0 8px',
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        <span>
+                          {entry.category}
+                          {entry.subcategory ? ` · ${entry.subcategory}` : ''}
+                        </span>
+                        <span>{formatRelativeEntryDate(entry.entry_date)}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: isDual ? 11 : 13,
+                      fontWeight: 600,
+                      color: '#1C0F3F',
+                      flexShrink: 0,
+                      fontVariantNumeric: 'tabular-nums',
+                      textAlign: 'right',
+                      maxWidth: isDual ? 140 : undefined,
+                      lineHeight: 1.35,
+                    }}
+                    title={
+                      entry.original_currency
+                        ? `Stored as ${currencySymbol(currency)}${entry.amount} ${currency}`
+                        : undefined
+                    }
+                  >
+                    {amountLabel}
+                  </p>
+                </div>
+              )
+            })}
           </div>
 
           {onSeeAll && (

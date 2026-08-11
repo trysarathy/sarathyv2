@@ -22,15 +22,15 @@ export function friendlyExpenseSaveError(raw?: string | null): string {
 }
 
 export function friendlyVoiceParseError(raw?: string | null): string {
-  if (!raw?.trim()) return "Didn't catch that — try speaking a bit slower."
+  if (!raw?.trim()) return "Didn't catch that — try again or type it"
   const m = lower(raw)
   if (m.includes('unauthorized') || m.includes('jwt')) {
     return 'Sign in again, then try voice logging.'
   }
   if (m.includes('no transcript')) {
-    return "Didn't hear anything — tap the mic and try again."
+    return "Didn't catch that — try again or type it"
   }
-  return "Didn't catch that — try 'spent 8 dollars on lunch'."
+  return "Didn't catch that — try again or type it"
 }
 
 export function friendlyVoicePermissionError(

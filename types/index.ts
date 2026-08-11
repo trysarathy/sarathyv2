@@ -38,6 +38,8 @@ export interface Profile {
   notification_time?: string | null
   /** Post-onboarding notification opt-in prompt dismissed */
   notifications_prompt_seen?: boolean
+  /** SGT date of last budget warning nudge (YYYY-MM-DD); max one per day */
+  last_nudge_sent?: string | null
   created_at: string
 }
 
@@ -48,6 +50,10 @@ export interface BudgetEntry {
   /** Student-specific detail under category (e.g. Food → Hawker). */
   subcategory?: string | null
   amount: number
+  /** Pre-conversion amount when logged in a foreign currency. */
+  original_amount?: number | null
+  /** ISO currency code for original_amount. */
+  original_currency?: string | null
   description: string | null
   entry_date: string
   payment_method: string | null

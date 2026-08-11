@@ -53,6 +53,8 @@ export interface TodayViewProps {
   onAskSarathy: () => void
   onTapBreakdown: () => void
   onSetupBudget?: () => void
+  /** Quick-log chips row rendered directly under the Log Expense actions. */
+  quickLogSlot?: ReactNode
   moodSlot?: ReactNode
   accountsSlot?: ReactNode
   /** Shown between Connected Accounts and This Month (e.g. create-first-circle). */
@@ -74,6 +76,7 @@ export default function TodayView({
   onAskSarathy,
   onTapBreakdown,
   onSetupBudget,
+  quickLogSlot,
   moodSlot,
   accountsSlot,
   afterAccountsSlot,
@@ -329,6 +332,8 @@ export default function TodayView({
             Ask Sarathy
           </button>
         </div>
+
+        {quickLogSlot}
 
         {moodSlot}
 

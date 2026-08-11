@@ -147,6 +147,7 @@ export function formatCurrency(amount: number, currency: string = 'SGD'): string
   if (currency === 'VND') return `₫${n.toFixed(0)}`
   if (currency === 'PHP') return `₱${n.toFixed(0)}`
   if (currency === 'AUD') return `A$${n.toFixed(0)}`
+  if (currency === 'BDT') return `৳${n.toFixed(0)}`
   return `${currency} ${n.toFixed(0)}`
 }
 

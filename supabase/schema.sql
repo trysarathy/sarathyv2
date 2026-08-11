@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   notifications_enabled boolean NOT NULL DEFAULT false,
   notification_time time NOT NULL DEFAULT '20:00:00',
   notifications_prompt_seen boolean NOT NULL DEFAULT false,
+  last_nudge_sent date,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -69,6 +70,7 @@ COMMENT ON COLUMN public.profiles.preferred_language IS 'Companion reply languag
 COMMENT ON COLUMN public.profiles.notifications_enabled IS 'Daily expense reminder via Web Push';
 COMMENT ON COLUMN public.profiles.notification_time IS 'Preferred reminder time (interpreted as Asia/Singapore)';
 COMMENT ON COLUMN public.profiles.notifications_prompt_seen IS 'Post-onboarding notification opt-in prompt dismissed';
+COMMENT ON COLUMN public.profiles.last_nudge_sent IS 'SGT calendar date of last budget warning nudge (max one per day)';
 COMMENT ON COLUMN public.profiles.monthly_savings_goal IS 'Monthly amount reserved before safe-to-spend; 0 = disabled';
 COMMENT ON COLUMN public.profiles.savings_goal_prompt_dismissed IS 'Home savings prompt dismissed; also true when user sets a goal';
 COMMENT ON COLUMN public.profiles.goal_name IS 'Optional name for monthly_savings_goal (e.g. Bali fund)';
@@ -560,6 +562,7 @@ ALTER TABLE public.user_feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notifications_enabled boolean NOT NULL DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notification_time time NOT NULL DEFAULT '20:00:00';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS notifications_prompt_seen boolean NOT NULL DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_nudge_sent date;
 
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

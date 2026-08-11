@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * Hourly cron entry — forwards to /api/send-notification with daily mode.
+ * Hourly cron — forwards to /api/send-notification (morning safe-to-spend at each user's notification_time).
  * Protect with CRON_SECRET (Vercel Cron Authorization header or x-cron-secret).
  */
 export async function GET(req: NextRequest) {

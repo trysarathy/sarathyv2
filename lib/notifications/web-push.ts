@@ -64,9 +64,9 @@ export async function sendPushToSubscription(
   }
 }
 
-export async function sendReminderToUser(
+export async function sendPushToUser(
   userId: string,
-  vibe: CompanionTone | string | null | undefined
+  payload: { title: string; body: string; url?: string }
 ): Promise<{ sent: number; failed: number }> {
   const supabase = createServiceSupabaseClient()
   const { data: subs, error } = await supabase
@@ -78,17 +78,24 @@ export async function sendReminderToUser(
     return { sent: 0, failed: 0 }
   }
 
-  const copy = getReminderCopy(vibe)
   let sent = 0
   let failed = 0
   for (const sub of subs as PushSubscriptionRow[]) {
-    const result = await sendPushToSubscription(sub, {
-      title: copy.title,
-      body: copy.body,
-      url: LOG_EXPENSE_DEEP_LINK,
-    })
+    const result = await sendPushToSubscription(sub, payload)
     if (result.ok) sent += 1
     else failed += 1
   }
   return { sent, failed }
+}
+
+export async function sendReminderToUser(
+  userId: string,
+  vibe: CompanionTone | string | null | undefined
+): Promise<{ sent: number; failed: number }> {
+  const copy = getReminderCopy(vibe)
+  return sendPushToUser(userId, {
+    title: copy.title,
+    body: copy.body,
+    url: LOG_EXPENSE_DEEP_LINK,
+  })
 }

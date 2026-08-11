@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 const DISMISS_KEY = 'sarathy_install_banner_dismissed_until'
 
@@ -9,30 +9,22 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-function isIos(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  const iOS = /iPad|iPhone|iPod/.test(ua)
-  const iPadOs = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
-  return iOS || iPadOs
+declare global {
+  interface Window {
+    __sarathyDeferredInstallPrompt?: BeforeInstallPromptEvent | null
+  }
 }
 
-function isStandaloneDisplay(): boolean {
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+}
+
+function isStandalone(): boolean {
   if (typeof window === 'undefined') return true
   const displayStandalone = window.matchMedia('(display-mode: standalone)').matches
   const iosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
   return displayStandalone || iosStandalone
-}
-
-function isBrowserDisplayMode(): boolean {
-  if (typeof window === 'undefined') return false
-  // Prefer explicit browser mode; also treat non-standalone as installable browser context
-  if (isStandaloneDisplay()) return false
-  return (
-    window.matchMedia('(display-mode: browser)').matches ||
-    window.matchMedia('(display-mode: minimal-ui)').matches ||
-    !window.matchMedia('(display-mode: standalone)').matches
-  )
 }
 
 function isDismissed(): boolean {
@@ -53,47 +45,108 @@ function dismissForSevenDays() {
   }
 }
 
-/** Bottom install CTA — only in browser display-mode, not installed PWA. */
+/**
+ * Early capture — beforeinstallprompt often fires before React mounts.
+ * Call once from a tiny layout script + again from this component.
+ */
+export function captureBeforeInstallPrompt(e: Event) {
+  e.preventDefault()
+  const ev = e as BeforeInstallPromptEvent
+  if (typeof window !== 'undefined') {
+    window.__sarathyDeferredInstallPrompt = ev
+  }
+  return ev
+}
+
+/** Bottom install CTA — browser only; native prompt on Android/Chrome, Share tips on iOS. */
 export default function InstallAppBanner() {
   const [visible, setVisible] = useState(false)
   const [ios, setIos] = useState(false)
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installing, setInstalling] = useState(false)
 
-  useEffect(() => {
-    if (!isBrowserDisplayMode()) return
-    if (isDismissed()) return
-
-    setIos(isIos())
-    setVisible(true)
-
-    const onBip = (e: Event) => {
-      e.preventDefault()
-      setDeferred(e as BeforeInstallPromptEvent)
+  const hideInstallButton = useCallback(() => {
+    setVisible(false)
+    setDeferredPrompt(null)
+    if (typeof window !== 'undefined') {
+      window.__sarathyDeferredInstallPrompt = null
     }
-    window.addEventListener('beforeinstallprompt', onBip)
-    return () => window.removeEventListener('beforeinstallprompt', onBip)
   }, [])
 
-  if (!visible) return null
+  const showInstallButton = useCallback(() => {
+    if (isStandalone() || isDismissed()) return
+    setVisible(true)
+  }, [])
 
-  const handleInstall = async () => {
-    if (deferred) {
-      await deferred.prompt()
-      await deferred.userChoice
-      setDeferred(null)
-      setVisible(false)
-      dismissForSevenDays()
+  useEffect(() => {
+    // 4. Already installed as PWA — never show
+    if (isStandalone()) {
+      hideInstallButton()
       return
     }
-    // No native prompt (common on iOS) — keep banner showing iOS instructions
-    if (!ios) {
-      // Desktop Chrome without deferred event — nothing to do
+    if (isDismissed()) return
+
+    const onIOS = isIOS()
+    setIos(onIOS)
+
+    // iOS: no beforeinstallprompt — show Share instructions
+    if (onIOS) {
+      showInstallButton()
+      return
+    }
+
+    // Android/Chrome: pick up early-captured event, then keep listening
+    const early = window.__sarathyDeferredInstallPrompt
+    if (early) {
+      setDeferredPrompt(early)
+      showInstallButton()
+    }
+
+    const onBip = (e: Event) => {
+      const ev = captureBeforeInstallPrompt(e)
+      setDeferredPrompt(ev)
+      showInstallButton()
+    }
+
+    const onInstalled = () => {
+      hideInstallButton()
+      dismissForSevenDays()
+    }
+
+    window.addEventListener('beforeinstallprompt', onBip)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBip)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [hideInstallButton, showInstallButton])
+
+  // Non-iOS: wait for deferred prompt before showing (dead Install button otherwise)
+  if (!visible) return null
+  if (!ios && !deferredPrompt) return null
+
+  const handleInstall = async () => {
+    if (!deferredPrompt || installing) return
+    setInstalling(true)
+    try {
+      await deferredPrompt.prompt()
+      const result = await deferredPrompt.userChoice
+      if (result.outcome === 'accepted') {
+        hideInstallButton()
+        dismissForSevenDays()
+      }
+      setDeferredPrompt(null)
+      window.__sarathyDeferredInstallPrompt = null
+    } catch (err) {
+      console.warn('[pwa] install prompt failed:', err)
+    } finally {
+      setInstalling(false)
     }
   }
 
   const handleDismiss = () => {
     dismissForSevenDays()
-    setVisible(false)
+    hideInstallButton()
   }
 
   return (
@@ -117,32 +170,68 @@ export default function InstallAppBanner() {
       aria-label="Install Sarathy"
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45, fontWeight: 600 }}>
-          {ios
-            ? 'Tap Share → Add to Home Screen'
-            : 'Install Sarathy on your home screen for the best experience 📱'}
-        </p>
         {ios ? (
-          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.4 }}>
-            Use the Share button <span aria-hidden>⬆️</span> in Safari, then “Add to Home Screen”.
-          </p>
+          <>
+            <p
+              style={{
+                margin: '0 0 6px',
+                fontSize: 13,
+                lineHeight: 1.45,
+                fontWeight: 600,
+                textAlign: 'center',
+              }}
+            >
+              Tap Share <span aria-hidden style={{ fontSize: 16 }}>↑</span> then Add to Home Screen
+            </p>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.6)',
+                textAlign: 'center',
+                lineHeight: 1.4,
+              }}
+            >
+              Use the Share button in Safari to install Sarathy
+            </p>
+            <div
+              aria-hidden
+              style={{
+                marginTop: 10,
+                textAlign: 'center',
+                fontSize: 22,
+                lineHeight: 1,
+                opacity: 0.85,
+                animation: 'sarathyInstallArrowPulse 1.4s ease-in-out infinite',
+              }}
+            >
+              ↑
+            </div>
+          </>
         ) : (
-          <button
-            type="button"
-            onClick={() => void handleInstall()}
-            style={{
-              background: '#D4A853',
-              color: '#1C0F3F',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 14px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Install →
-          </button>
+          <>
+            <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45, fontWeight: 600 }}>
+              Install Sarathy on your home screen for the best experience 📱
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleInstall()}
+              disabled={installing || !deferredPrompt}
+              style={{
+                background: '#D4A853',
+                color: '#1C0F3F',
+                border: 'none',
+                borderRadius: 10,
+                padding: '9px 14px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: installing || !deferredPrompt ? 'not-allowed' : 'pointer',
+                opacity: installing || !deferredPrompt ? 0.6 : 1,
+              }}
+            >
+              {installing ? 'Installing…' : 'Install →'}
+            </button>
+          </>
         )}
       </div>
       <button
@@ -161,6 +250,12 @@ export default function InstallAppBanner() {
       >
         ×
       </button>
+      <style>{`
+        @keyframes sarathyInstallArrowPulse {
+          0%, 100% { transform: translateY(0); opacity: 0.55; }
+          50% { transform: translateY(-4px); opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }

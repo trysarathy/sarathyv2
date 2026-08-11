@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { formatRelativeEntryDate, todayInSingapore } from '@/lib/sarathy/sgt'
+import { todayInSingapore } from '@/lib/sarathy/sgt'
 import { getProfileDisplayCurrency } from '@/lib/home/display-currency'
 import {
   EXPENSE_CATEGORY_EMOJI,
@@ -15,6 +15,7 @@ import {
   normalizeExpenseCategory,
 } from '@/lib/expense/categories'
 import { CURRENCIES } from '@/components/ui/CurrencySelector'
+import { convertCurrencyAmount } from '@/lib/currency/convert'
 import VoiceMicButton from '@/components/home/VoiceMicButton'
 import ExpenseDatePicker from '@/components/home/ExpenseDatePicker'
 import {
@@ -30,6 +31,8 @@ import {
   friendlyVoicePermissionError,
 } from '@/lib/booth/friendly-errors'
 import { formatCurrency } from '@/lib/calculations'
+import PreSpendNudgeCard from '@/components/home/PreSpendNudgeCard'
+import { getDailyBudgetSnapshot } from '@/lib/nudge/daily-budget'
 import {
   pendingSplitQuery,
   savePendingCircleSplit,
@@ -41,6 +44,8 @@ interface Props {
   onLogged: (xp: number, coords?: { x: number; y: number }) => void | Promise<void>
   /** Open sheet already listening (home mic entry). */
   startInListeningMode?: boolean
+  /** Sum of today's budget_entries in primary currency (excludes this draft). */
+  todaySpent?: number
 }
 
 function xpFloatCoords(el: HTMLElement | null): { x: number; y: number } | undefined {
@@ -67,13 +72,14 @@ const MOODS = [
   { emoji: '😤', label: 'Stressed', value: 'stressed' },
 ]
 
-type VoicePhase = 'idle' | 'listening' | 'parsing' | 'confirm'
+type VoicePhase = 'idle' | 'listening' | 'parsing' | 'success' | 'confirm' | 'failed'
 
 export default function LogExpenseSheet({
   profile,
   onClose,
   onLogged,
   startInListeningMode = false,
+  todaySpent = 0,
 }: Props) {
   const router = useRouter()
   const supabase = createClient()
@@ -92,6 +98,8 @@ export default function LogExpenseSheet({
   const [saveError, setSaveError] = useState('')
   const [currency, setCurrency] = useState(profileCurrency)
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false)
+  const [pendingPrimary, setPendingPrimary] = useState(0)
+  const [nudgeGate, setNudgeGate] = useState(false)
   const [loggedSuccess, setLoggedSuccess] = useState<{
     amount: number
     description: string
@@ -154,27 +162,31 @@ export default function LogExpenseSheet({
         const data = await res.json()
         if (!res.ok || typeof data.amount !== 'number' || data.amount <= 0) {
           setVoiceError(friendlyVoiceParseError(data.error))
-          setVoicePhase('idle')
+          setVoicePhase('failed')
           return
         }
 
         setAmount(String(data.amount))
         const nextCategory = data.category
           ? normalizeExpenseCategory(data.category)
-          : category
+          : 'Food'
         setCategory(nextCategory)
-        setSubcategory(
-          inferSubcategory(nextCategory, data.description || data.subcategory || '')
-        )
+        const nextSub =
+          typeof data.subcategory === 'string' && data.subcategory.trim()
+            ? data.subcategory.trim()
+            : inferSubcategory(nextCategory, data.description || '')
+        setSubcategory(nextSub)
+        setShowCustomSub(!isPresetSubcategory(nextCategory, nextSub))
         if (data.description) setDescription(data.description)
         setEntryDate(todayInSingapore())
 
         setPrefillFlash(true)
         window.setTimeout(() => setPrefillFlash(false), 1400)
-        setVoicePhase('confirm')
+        setVoicePhase('success')
+        window.setTimeout(() => setVoicePhase('confirm'), 700)
       } catch {
         setVoiceError(friendlyVoiceParseError())
-        setVoicePhase('idle')
+        setVoicePhase('failed')
       } finally {
         parsingRef.current = false
       }
@@ -224,8 +236,8 @@ export default function LogExpenseSheet({
       if (text) {
         void parseTranscript(text)
       } else {
-        setVoicePhase('idle')
         setVoiceError(friendlyVoiceParseError('no transcript'))
+        setVoicePhase('failed')
       }
     }
     wasListeningRef.current = isListening
@@ -237,9 +249,14 @@ export default function LogExpenseSheet({
       showChromeFallback()
       return
     }
+    // no-speech during continuous listen is ignored in the hook; treat leftover as soft fail
     setVoiceErrorIsChromeHint(false)
-    setVoiceError(friendlyVoicePermissionError(recognitionError))
-    setVoicePhase('idle')
+    setVoiceError(
+      recognitionError === 'no-speech'
+        ? friendlyVoiceParseError('no transcript')
+        : friendlyVoicePermissionError(recognitionError)
+    )
+    setVoicePhase(recognitionError === 'not-allowed' ? 'idle' : 'failed')
   }, [recognitionError, showChromeFallback])
 
   useEffect(() => {
@@ -261,8 +278,60 @@ export default function LogExpenseSheet({
     }
   }, [abortListening])
 
+  // Convert draft amount into primary currency for pre-spend checks
+  useEffect(() => {
+    let cancelled = false
+    const raw = parseFloat(amount)
+    if (!Number.isFinite(raw) || raw <= 0) {
+      setPendingPrimary(0)
+      setNudgeGate(false)
+      return
+    }
+    void (async () => {
+      let next = raw
+      if (currency !== profileCurrency) {
+        next = await convertCurrencyAmount(raw, currency, profileCurrency)
+      }
+      if (!cancelled) {
+        setPendingPrimary(next)
+        setNudgeGate(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [amount, currency, profileCurrency])
+
+  const todaySgt = todayInSingapore()
+  const nudgeApplies = entryDate === todaySgt && pendingPrimary > 0 && Boolean(profile.planning_amount)
+  const nudgeSnapshot = nudgeApplies
+    ? getDailyBudgetSnapshot({
+        planningAmount: profile.planning_amount,
+        todaySpent,
+        pendingAmount: pendingPrimary,
+      })
+    : null
+
   const handleSave = async () => {
     if (!amount || parseFloat(amount) <= 0) return
+
+    const today = todayInSingapore()
+    const expenseDate = entryDate && entryDate <= today ? entryDate : today
+    const isToday = expenseDate === today
+
+    // TRIGGER 2 — gate save if this expense would leave <20% or go over
+    if (isToday && !nudgeGate && pendingPrimary > 0 && profile.planning_amount) {
+      const preview = getDailyBudgetSnapshot({
+        planningAmount: profile.planning_amount,
+        todaySpent,
+        pendingAmount: pendingPrimary,
+      })
+      if (preview.level === 'warn' || preview.level === 'over') {
+        setNudgeGate(true)
+        return
+      }
+    }
+
     setSaving(true)
     setSaveError('')
 
@@ -273,23 +342,12 @@ export default function LogExpenseSheet({
         return
       }
 
-      const today = todayInSingapore()
-      const expenseDate = entryDate && entryDate <= today ? entryDate : today
-      let finalAmount = parseFloat(amount)
-      const originalAmount = finalAmount
+      const originalAmount = parseFloat(amount)
       const originalCurrency = currency
+      let finalAmount = originalAmount
 
       if (currency !== profileCurrency) {
-        try {
-          const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${currency}`)
-          const data = await res.json()
-          const rate = data.rates?.[profileCurrency]
-          if (rate) {
-            finalAmount = parseFloat((parseFloat(amount) * rate).toFixed(2))
-          }
-        } catch {
-          // Use as-is if conversion fails
-        }
+        finalAmount = await convertCurrencyAmount(originalAmount, currency, profileCurrency)
       }
 
       if (mood) {
@@ -311,21 +369,30 @@ export default function LogExpenseSheet({
         category,
         subcategory,
         amount: finalAmount,
-        original_amount: originalAmount,
-        original_currency: originalCurrency,
         description: description || subcategory || category,
         entry_date: expenseDate,
         logged_via: 'manual',
       }
 
+      // Keep the amount the user typed when logging in a non-primary currency
+      if (originalCurrency !== profileCurrency) {
+        row.original_amount = originalAmount
+        row.original_currency = originalCurrency
+      }
+
       let { error: insertError } = await supabase.from('budget_entries').insert(row)
 
-      // If subcategory column isn't migrated yet, still save the expense
+      // If newer columns aren't migrated yet, still save the expense
       if (
         insertError &&
-        /subcategory/i.test(insertError.message)
+        (/subcategory/i.test(insertError.message) ||
+          /original_amount|original_currency/i.test(insertError.message))
       ) {
-        delete row.subcategory
+        if (/subcategory/i.test(insertError.message)) delete row.subcategory
+        if (/original_amount|original_currency/i.test(insertError.message)) {
+          delete row.original_amount
+          delete row.original_currency
+        }
         ;({ error: insertError } = await supabase.from('budget_entries').insert(row))
       }
 
@@ -354,6 +421,17 @@ export default function LogExpenseSheet({
       if (xpError) {
         setSaveError('Expense saved, but XP could not be updated. Refresh the page.')
         return
+      }
+
+      // TRIGGER 1 — budget warning push (at most once per day)
+      try {
+        await fetch('/api/nudge/after-expense', {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({ entryDate: expenseDate }),
+        })
+      } catch (nudgeErr) {
+        console.warn('Budget nudge failed:', nudgeErr)
       }
 
       await onLogged(xpAward, xpFloatCoords(saveButtonRef.current))
@@ -386,11 +464,16 @@ export default function LogExpenseSheet({
   const showVoicePanel =
     voicePhase === 'listening' ||
     voicePhase === 'parsing' ||
+    voicePhase === 'success' ||
     voicePhase === 'confirm' ||
+    voicePhase === 'failed' ||
     Boolean(voiceError)
 
-  const categoryEmoji =
-    EXPENSE_CATEGORY_EMOJI[category as keyof typeof EXPENSE_CATEGORY_EMOJI] || '📌'
+  const dismissVoiceFailure = () => {
+    setVoiceError('')
+    setVoiceErrorIsChromeHint(false)
+    setVoicePhase('idle')
+  }
 
   if (loggedSuccess) {
     const successEmoji =
@@ -516,7 +599,13 @@ export default function LogExpenseSheet({
           {currency !== profileCurrency && amount && parseFloat(amount) > 0 && (
             <div className="log-sheet-convert-notice mt-2">
               <p className="text-xs text-indigo leading-relaxed">
-                Will convert to {profileCurrencyData.code} {profileCurrencyData.symbol} at live rate
+                {currency === 'BDT' && profileCurrency === 'SGD'
+                  ? `Will convert to ${profileCurrencyData.code} ${profileCurrencyData.symbol} at ≈ 1 BDT = 0.013 SGD`
+                  : profileCurrency === 'BDT' && currency === 'SGD'
+                    ? `Will convert to ${profileCurrencyData.code} ${profileCurrencyData.symbol} at ≈ 1 SGD = 76.92 BDT`
+                    : currency === 'BDT' || profileCurrency === 'BDT'
+                      ? `Will convert to ${profileCurrencyData.code} ${profileCurrencyData.symbol} (BDT via fixed SGD rate)`
+                      : `Will convert to ${profileCurrencyData.code} ${profileCurrencyData.symbol} at live rate`}
               </p>
             </div>
           )}
@@ -541,47 +630,110 @@ export default function LogExpenseSheet({
         {showVoicePanel && (
           <div className="log-sheet-voice-panel">
             {voicePhase === 'listening' && (
-              <div className="flex flex-col items-center text-center gap-2 py-1">
-                <VoiceMicButton
-                  listening
-                  onClick={handleMicToggle}
-                  ariaLabel="Stop listening"
-                />
-                <div className="voice-waveform" aria-hidden>
-                  <span /><span /><span /><span /><span />
+              <div className="flex flex-col items-center text-center gap-3 py-2">
+                <div className="voice-listen-ring" aria-hidden>
+                  <VoiceMicButton
+                    size="lg"
+                    listening
+                    onClick={handleMicToggle}
+                    ariaLabel="Stop listening"
+                  />
                 </div>
                 <p className="log-sheet-voice-label">Listening… {formatElapsed(elapsedSec)}</p>
                 <p className="font-fraunces text-sm text-indigo min-h-[2.5rem] leading-relaxed px-2">
-                  {liveTranscript || 'Say something like “Lunch at hawker, five dollars”'}
+                  {liveTranscript || 'Say something like “Hawker lunch five dollars”'}
                 </p>
-                <p className="text-[11px] text-indigo-muted">Tap the mic when you&apos;re done</p>
+                <p className="text-[11px] text-indigo-muted">
+                  Stops after 2 seconds of silence · or tap the mic
+                </p>
               </div>
             )}
 
             {voicePhase === 'parsing' && (
-              <div className="flex items-center justify-center gap-2 py-3">
-                <span className="w-4 h-4 border-2 border-indigo border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-indigo-muted">Understanding…</p>
+              <div className="flex flex-col items-center text-center gap-2 py-3">
+                <div className="voice-waveform voice-waveform-processing" aria-hidden>
+                  <span /><span /><span /><span /><span /><span /><span />
+                </div>
+                <p className="log-sheet-voice-label">Understanding…</p>
+                {heardText && (
+                  <p className="text-[11px] text-indigo-muted leading-relaxed px-2">
+                    “{heardText}”
+                  </p>
+                )}
+              </div>
+            )}
+
+            {voicePhase === 'success' && (
+              <div className="flex flex-col items-center text-center gap-2 py-4">
+                <div className="voice-parse-check" aria-hidden>
+                  ✓
+                </div>
+                <p className="log-sheet-voice-label">Got it</p>
               </div>
             )}
 
             {voicePhase === 'confirm' && (
               <div className="voice-confirm-card">
+                <div className="voice-parse-check voice-parse-check-sm mb-2" aria-hidden>
+                  ✓
+                </div>
                 <p className="log-sheet-voice-label mb-2">Confirm before saving</p>
                 {heardText && (
-                  <p className="text-[11px] text-indigo-muted mb-2 leading-relaxed">
+                  <p className="text-[11px] text-indigo-muted mb-3 leading-relaxed">
                     Heard: “{heardText}”
                   </p>
                 )}
-                <p className="font-fraunces text-lg font-semibold text-indigo mb-1">
-                  {formatCurrency(parseFloat(amount) || 0, currency)} · {description || category}
-                </p>
-                <p className="text-xs text-indigo-muted mb-3">
-                  {categoryEmoji} {category}
-                  {subcategory ? ` · ${subcategory}` : ''} · {formatRelativeEntryDate(entryDate)}
-                </p>
-                <p className="text-[11px] text-indigo-muted mb-3">
-                  Edit any field below, then tap Log to save.
+
+                <label className="voice-confirm-field">
+                  <span>Amount</span>
+                  <div className="voice-confirm-amount-row">
+                    <span className="text-sm font-semibold text-indigo">{selectedCurrency.symbol}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="voice-confirm-input"
+                    />
+                  </div>
+                </label>
+
+                <label className="voice-confirm-field">
+                  <span>Description</span>
+                  <input
+                    type="text"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="What was this for?"
+                    className="voice-confirm-input"
+                  />
+                </label>
+
+                <div className="voice-confirm-field">
+                  <span>Category</span>
+                  <div className="voice-confirm-cats">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => {
+                          setCategory(cat.value)
+                          setSubcategory(getDefaultSubcategory(cat.value))
+                          setShowCustomSub(false)
+                          setCustomSubDraft('')
+                        }}
+                        className={`voice-confirm-cat ${
+                          category === cat.value ? 'voice-confirm-cat-selected' : ''
+                        }`}
+                      >
+                        {cat.emoji} {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-indigo-muted mt-2 mb-3">
+                  Edit anything above, then tap Log to save.
                 </p>
                 <button
                   type="button"
@@ -596,7 +748,7 @@ export default function LogExpenseSheet({
               </div>
             )}
 
-            {voiceError && voicePhase === 'idle' && (
+            {(voicePhase === 'failed' || (voiceError && voicePhase === 'idle' && voiceErrorIsChromeHint)) && (
               voiceErrorIsChromeHint ? (
                 <a
                   href={getOpenInChromeHref()}
@@ -607,7 +759,27 @@ export default function LogExpenseSheet({
                   {voiceError}
                 </a>
               ) : (
-                <p className="text-sm text-danger text-center py-1">{voiceError}</p>
+                <div className="flex flex-col items-center text-center gap-3 py-2">
+                  <p className="text-sm text-danger font-medium leading-relaxed px-1">
+                    {voiceError || "Didn't catch that — try again or type it"}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <VoiceMicButton
+                      onClick={() => {
+                        setVoiceError('')
+                        void beginListening()
+                      }}
+                      ariaLabel="Try voice again"
+                    />
+                    <button
+                      type="button"
+                      onClick={dismissVoiceFailure}
+                      className="text-xs font-semibold text-indigo underline underline-offset-2"
+                    >
+                      Type it instead
+                    </button>
+                  </div>
+                </div>
               )
             )}
           </div>
@@ -750,19 +922,52 @@ export default function LogExpenseSheet({
           </div>
         )}
 
-        <button
-          type="button"
-          ref={saveButtonRef}
-          onClick={handleSave}
-          className="log-sheet-save"
-          disabled={saving || !amount || parseFloat(amount) <= 0}
-        >
-          {saving
-            ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            : voicePhase === 'confirm'
-              ? `Looks good — Log ${selectedCurrency.symbol}${amount || '0'} →`
-              : `Log ${selectedCurrency.symbol}${amount || '0'} →`}
-        </button>
+        {nudgeSnapshot?.level === 'healthy' && (
+          <PreSpendNudgeCard
+            level="healthy"
+            remaining={nudgeSnapshot.remaining}
+            percentageRemaining={nudgeSnapshot.percentageRemaining}
+            currency={profileCurrency}
+            onLogAnyway={() => {}}
+            onReconsider={onClose}
+          />
+        )}
+
+        {nudgeGate &&
+          nudgeSnapshot &&
+          (nudgeSnapshot.level === 'warn' || nudgeSnapshot.level === 'over') && (
+            <PreSpendNudgeCard
+              level={nudgeSnapshot.level}
+              remaining={nudgeSnapshot.remaining}
+              percentageRemaining={nudgeSnapshot.percentageRemaining}
+              currency={profileCurrency}
+              onLogAnyway={() => {
+                setNudgeGate(true)
+                void handleSave()
+              }}
+              onReconsider={onClose}
+            />
+          )}
+
+        {!(
+          nudgeGate &&
+          nudgeSnapshot &&
+          (nudgeSnapshot.level === 'warn' || nudgeSnapshot.level === 'over')
+        ) && (
+          <button
+            type="button"
+            ref={saveButtonRef}
+            onClick={() => void handleSave()}
+            className="log-sheet-save"
+            disabled={saving || !amount || parseFloat(amount) <= 0}
+          >
+            {saving
+              ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : voicePhase === 'confirm'
+                ? `Looks good — Log ${selectedCurrency.symbol}${amount || '0'} →`
+                : `Log ${selectedCurrency.symbol}${amount || '0'} →`}
+          </button>
+        )}
       </div>
     </>
   )
