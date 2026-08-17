@@ -26,25 +26,58 @@ export async function POST(req: NextRequest) {
   )
 
   // 1–2. Save subscription first — never touch profiles if this fails
-  const { error: insertError } = await supabase.from('push_subscriptions').upsert(
-    {
-      user_id: user.id,
-      endpoint,
-      p256dh,
-      auth,
-      user_agent: req.headers.get('user-agent')?.slice(0, 300) || null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'endpoint' }
-  )
+  const userId = user.id
+  const userAgent = req.headers.get('user-agent')?.slice(0, 300) || null
 
-  if (insertError) {
-    console.error('push subscribe error:', insertError.message)
+  try {
+    // Check if subscription already exists
+    const { data: existing } = await supabase
+      .from('push_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('endpoint', endpoint)
+      .maybeSingle()
+
+    if (existing) {
+      // Update existing
+      const { error: updateError } = await supabase
+        .from('push_subscriptions')
+        .update({
+          p256dh,
+          auth,
+          user_agent: userAgent,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+
+      if (updateError) throw updateError
+    } else {
+      // Insert new
+      const { error: insertError } = await supabase
+        .from('push_subscriptions')
+        .insert({
+          user_id: userId,
+          endpoint,
+          p256dh,
+          auth,
+          user_agent: userAgent,
+        })
+
+      if (insertError) throw insertError
+    }
+  } catch (err) {
+    const message =
+      err && typeof err === 'object' && 'message' in err
+        ? String((err as { message: string }).message)
+        : err instanceof Error
+          ? err.message
+          : 'Could not save subscription'
+    console.error('push subscribe error:', message)
     // Do NOT update notifications_prompt_seen or notifications_enabled
     return NextResponse.json(
       {
         error: 'Could not save subscription',
-        detail: insertError.message,
+        detail: message,
       },
       { status: 500 }
     )

@@ -29,6 +29,12 @@ import {
   unsubscribeFromPush,
 } from '@/lib/notifications/client'
 import { getAuthHeaders } from '@/lib/api-auth'
+import { isAndroidNative } from '@/lib/capacitor/platform'
+import {
+  isSmartCaptureEnabled,
+  openSmartCaptureSettings,
+  setSmartCaptureEnabledFlag,
+} from '@/lib/capacitor/smart-capture'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -52,6 +58,9 @@ export default function ProfilePage() {
   const [savingNotifications, setSavingNotifications] = useState(false)
   const [notifyPreview, setNotifyPreview] = useState<{ title: string; body: string } | null>(null)
   const [notifyError, setNotifyError] = useState('')
+  const [showSmartCapture, setShowSmartCapture] = useState(false)
+  const [smartCaptureOn, setSmartCaptureOn] = useState(false)
+  const [smartCaptureBusy, setSmartCaptureBusy] = useState(false)
 
   const currency = profile ? getProfileDisplayCurrency(profile) : 'SGD'
   const today = todayInSingapore()
@@ -95,6 +104,42 @@ export default function ProfilePage() {
   }
 
   useEffect(() => { loadProfile() }, [])
+
+  useEffect(() => {
+    if (!isAndroidNative()) return
+    setShowSmartCapture(true)
+    void isSmartCaptureEnabled().then(setSmartCaptureOn)
+  }, [])
+
+  useEffect(() => {
+    if (!showSmartCapture) return
+    const refresh = () => {
+      void isSmartCaptureEnabled().then((on) => {
+        setSmartCaptureOn(on)
+        setSmartCaptureEnabledFlag(on)
+      })
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [showSmartCapture])
+
+  const handleSmartCaptureManage = async () => {
+    setSmartCaptureBusy(true)
+    try {
+      await openSmartCaptureSettings()
+    } catch (err) {
+      console.warn('[smart-capture]', err)
+    } finally {
+      setSmartCaptureBusy(false)
+    }
+  }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -654,6 +699,44 @@ export default function ProfilePage() {
             Default is 8:00 PM (Singapore time). Tap a reminder to open Log expense straight away.
           </p>
         </div>
+
+        {showSmartCapture && (
+          <div className="profile-card">
+            <p className="profile-section-kicker">🪄 Smart Capture</p>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-indigo">Payment notifications</p>
+                <p className="text-xs text-indigo-muted mt-0.5 leading-relaxed">
+                  {smartCaptureOn
+                    ? 'On — Grab, banks, PayLah & more auto-log'
+                    : 'Off — turn on to catch payment alerts'}
+                </p>
+              </div>
+              <span
+                className="shrink-0 text-xs font-semibold"
+                style={{ color: smartCaptureOn ? '#D4A853' : undefined }}
+              >
+                {smartCaptureOn ? 'On ✓' : 'Off'}
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={smartCaptureBusy}
+              onClick={() => void handleSmartCaptureManage()}
+              className="text-sm font-semibold text-indigo underline underline-offset-2"
+            >
+              {smartCaptureBusy
+                ? 'Opening…'
+                : smartCaptureOn
+                  ? 'Manage in Android Settings →'
+                  : 'Turn on Smart Capture →'}
+            </button>
+            <p className="text-xs text-ink-3 mt-3 leading-relaxed">
+              Only reads payment confirmations from allowlisted apps. Never WhatsApp, Messages, or
+              email.
+            </p>
+          </div>
+        )}
 
         <div className="profile-settings-list">
           {[

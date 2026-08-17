@@ -1,9 +1,12 @@
-/* Sarathy PWA service worker — offline shell + Web Push */
+/* Sarathy PWA service worker — offline shell + Web Push + share_target */
 
-const CACHE_NAME = 'sarathy-v1'
+const CACHE_NAME = 'sarathy-v2'
+const SHARE_CACHE = 'sarathy-share-v1'
+const SHARE_FILE_KEY = '/__share_file'
 const STATIC_ASSETS = [
   '/',
   '/home',
+  '/share',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
@@ -27,17 +30,61 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => k !== CACHE_NAME && k !== SHARE_CACHE)
+          .map((k) => caches.delete(k))
+      )
     )
   )
   self.clients.claim()
 })
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return
+/** Web Share Target — POST /share → stash file, redirect GET /share?... */
+async function handleShareTarget(request) {
+  const formData = await request.formData()
+  const title = formData.get('title')
+  const text = formData.get('text')
+  const sharedUrl = formData.get('url')
+  const file = formData.get('file')
 
+  const cache = await caches.open(SHARE_CACHE)
+  await cache.delete(SHARE_FILE_KEY)
+
+  let hasFile = false
+  if (file && typeof file === 'object' && 'arrayBuffer' in file && file.size > 0) {
+    const headers = new Headers({
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-Filename': file.name || 'share.jpg',
+    })
+    await cache.put(SHARE_FILE_KEY, new Response(file, { headers }))
+    hasFile = true
+  }
+
+  const params = new URLSearchParams()
+  if (typeof title === 'string' && title.trim()) params.set('title', title.trim())
+  if (typeof text === 'string' && text.trim()) params.set('text', text.trim())
+  if (typeof sharedUrl === 'string' && sharedUrl.trim()) params.set('url', sharedUrl.trim())
+  if (hasFile) params.set('hasFile', '1')
+
+  const redirectTo = new URL('/share', self.location.origin)
+  redirectTo.search = params.toString()
+  return Response.redirect(redirectTo.href, 303)
+}
+
+self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
-  // Don't cache API / auth / opaque cross-origin blindly in network-first path for non-http
+
+  if (
+    event.request.method === 'POST' &&
+    url.origin === self.location.origin &&
+    url.pathname === '/share'
+  ) {
+    event.respondWith(handleShareTarget(event.request))
+    return
+  }
+
+  if (event.request.method !== 'GET') return
   if (url.origin !== self.location.origin) return
 
   event.respondWith(

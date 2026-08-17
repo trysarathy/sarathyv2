@@ -30,11 +30,19 @@ import MonthSummarySheet from '@/components/home/MonthSummarySheet'
 import HomeWalkthrough from '@/components/home/HomeWalkthrough'
 import ExpenseDatePicker from '@/components/home/ExpenseDatePicker'
 import NotificationOptInPrompt from '@/components/notifications/NotificationOptInPrompt'
+import UndoToast from '@/components/UndoToast'
 import { EXPENSE_CATEGORIES } from '@/lib/expense/categories'
 import { buildQuickLogChips, type QuickLogChip } from '@/lib/expense/quick-log-chips'
 import { friendlyExpenseSaveError, friendlyHomeLoadError } from '@/lib/booth/friendly-errors'
 import { isHomeWalkthroughDone } from '@/lib/booth/walkthrough-storage'
 import { isPushConfigured, subscribeToPush } from '@/lib/notifications/client'
+import { getAuthHeaders } from '@/lib/api-auth'
+import {
+  SARATHY_PAYMENT_EVENT,
+  type SarathyPaymentDetectedEvent,
+} from '@/lib/capacitor/payment-events'
+import { shouldShowSmartCapturePrompt } from '@/lib/capacitor/smart-capture'
+import type { ParseReceiptApiResponse } from '@/lib/expense/parse-receipt-types'
 
 export default function HomeClient() {
   const router = useRouter()
@@ -76,6 +84,13 @@ export default function HomeClient() {
     y: 0,
     xp: 0,
   })
+  const [notifUndo, setNotifUndo] = useState<{
+    amount: number
+    description: string
+    entryId: string
+    currency: string
+  } | null>(null)
+  const paymentBusyRef = useRef(false)
 
   const loadData = useCallback(async () => {
     setLoadError(null)
@@ -147,14 +162,29 @@ export default function HomeClient() {
   }, [loading, profile, safeData])
 
   // Deep link from push notification → open Log Expense sheet
+  // Deep link from share undo toast → open expense editor
   useEffect(() => {
     if (loading || !profile || deepLinkHandled.current) return
     if (searchParams.get('log') === 'expense') {
       deepLinkHandled.current = true
       setLogMode('manual')
       router.replace('/home', { scroll: false })
+      return
     }
-  }, [loading, profile, searchParams, router])
+    const editId = searchParams.get('edit')
+    if (editId) {
+      deepLinkHandled.current = true
+      const entry = entries.find((e) => e.id === editId)
+      if (entry) {
+        setEditingEntry(entry)
+        setEditAmount(String(entry.amount))
+        setEditDescription(entry.description || '')
+        setEditDate(entry.entry_date)
+        setEditCategory(entry.category)
+      }
+      router.replace('/home', { scroll: false })
+    }
+  }, [loading, profile, searchParams, router, entries])
 
   // Service worker message fallback when client already open
   useEffect(() => {
@@ -195,6 +225,15 @@ export default function HomeClient() {
     const t = window.setTimeout(() => setShowNotifyPrompt(true), 600)
     return () => window.clearTimeout(t)
   }, [loading, profile, showWalkthrough, showNotifyPrompt, supabase])
+
+  // Android Capacitor: one-time Smart Capture permission screen after onboarding
+  useEffect(() => {
+    if (loading || !profile || showWalkthrough || showNotifyPrompt) return
+    if (!isHomeWalkthroughDone()) return
+    if (profile.notifications_prompt_seen === false && isPushConfigured()) return
+    if (!shouldShowSmartCapturePrompt()) return
+    router.replace('/smart-capture')
+  }, [loading, profile, showWalkthrough, showNotifyPrompt, router])
 
   const dismissNotifyPrompt = async (enabled: boolean) => {
     if (!profile) return
@@ -249,6 +288,40 @@ export default function HomeClient() {
       setNotifyBusy(false)
     }
   }
+
+  // Android NotificationListener → auto-log payment SMS/alerts
+  useEffect(() => {
+    const handler = async (event: Event) => {
+      const e = event as SarathyPaymentDetectedEvent
+      const text = e.detail?.text?.trim()
+      if (!text || paymentBusyRef.current) return
+      paymentBusyRef.current = true
+      try {
+        const res = await fetch('/api/parse-receipt', {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({ text, source: 'notification' }),
+        })
+        const data = (await res.json()) as ParseReceiptApiResponse
+        if (data.success && data.confidence === 'high' && data.entry) {
+          setNotifUndo({
+            amount: Number(data.entry.amount),
+            description: data.entry.description || data.entry.merchant || 'Expense',
+            entryId: data.entry.id,
+            currency: profile ? getProfileDisplayCurrency(profile) : 'SGD',
+          })
+          void loadData()
+        }
+      } catch (err) {
+        console.warn('[sarathy] notification parse failed:', err)
+      } finally {
+        paymentBusyRef.current = false
+      }
+    }
+
+    window.addEventListener(SARATHY_PAYMENT_EVENT, handler as EventListener)
+    return () => window.removeEventListener(SARATHY_PAYMENT_EVENT, handler as EventListener)
+  }, [loadData, profile])
 
   const handleExpenseLogged = async (xp: number, coords?: { x: number; y: number }) => {
     let x = coords?.x
@@ -605,6 +678,28 @@ export default function HomeClient() {
           />
         )}
       </TodayView>
+
+      {notifUndo && (
+        <UndoToast
+          amount={notifUndo.amount}
+          currency={notifUndo.currency}
+          description={notifUndo.description}
+          durationSeconds={6}
+          autoLeave={false}
+          onDismiss={() => setNotifUndo(null)}
+          onUndo={async () => {
+            await supabase.from('budget_entries').delete().eq('id', notifUndo.entryId)
+            setNotifUndo(null)
+            void loadData()
+          }}
+          onEdit={() => {
+            const entry = entries.find((e) => e.id === notifUndo.entryId)
+            setNotifUndo(null)
+            if (entry) openEditEntry(entry)
+            else window.location.href = `/home?edit=${encodeURIComponent(notifUndo.entryId)}`
+          }}
+        />
+      )}
 
       <TabBar active="home" />
     </>

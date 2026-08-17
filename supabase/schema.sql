@@ -585,3 +585,20 @@ ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget_entries ADD COLUMN IF NOT EXISTS subcategory text;
 COMMENT ON COLUMN public.budget_entries.subcategory IS
   'Optional detail under category (e.g. Food → Hawker)';
+
+-- Merchant memory for share/receipt learning (2026-08-16)
+CREATE TABLE IF NOT EXISTS public.merchant_memory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  merchant text NOT NULL,
+  merchant_normalized text NOT NULL,
+  category text NOT NULL,
+  subcategory text,
+  times_seen integer NOT NULL DEFAULT 1 CHECK (times_seen >= 0),
+  times_corrected integer NOT NULL DEFAULT 0 CHECK (times_corrected >= 0),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, merchant_normalized)
+);
+CREATE INDEX IF NOT EXISTS merchant_memory_user_id_idx ON public.merchant_memory (user_id);
+ALTER TABLE public.merchant_memory ENABLE ROW LEVEL SECURITY;
